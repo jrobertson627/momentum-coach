@@ -22,6 +22,7 @@ npm run dev        # start the dev server
 npm run build      # typecheck and build to dist/
 npm run preview    # serve the production build (PWA + service worker)
 npm run lint       # oxlint
+npm test           # vitest
 npm run format     # prettier
 ```
 
@@ -32,6 +33,8 @@ Schema changes live in `supabase/migrations/`. The Supabase GitHub integration a
 ```bash
 npx supabase migration new <name>   # create a migration file
 ```
+
+CI runs typecheck, lint, format check, tests and build on every pull request.
 
 App icons are generated from `public/logo.svg` with `npm run icons`.
 
