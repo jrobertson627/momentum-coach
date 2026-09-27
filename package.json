@@ -11,7 +11,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
-    "icons": "pwa-assets-generator --preset minimal-2023 public/logo.svg"
+    "icons": "pwa-assets-generator --preset minimal-2023 public/logo.svg",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -32,6 +34,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^5.0.2"
   }
 }
