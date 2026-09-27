@@ -2,13 +2,15 @@
 
 A calm, cross-device coach that helps enthusiastic starters become finishers.
 
+**Live:** https://momentum-coach.onrender.com
+
 Most productivity tools help you organize more work. Momentum Coach watches for the habits that stop you finishing — losing interest, perfectionism, starting something new — and recommends one small, concrete next action, with an explanation of why.
 
 ## Stack
 
 - React + TypeScript + Vite, installable as a PWA
 - Supabase (Postgres, auth, sync)
-- Hosted on Render — _coming in M0_
+- Hosted on Render as a static site; every push to `main` deploys automatically
 
 ## Development
 
