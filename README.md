@@ -32,7 +32,10 @@ Schema changes live in `supabase/migrations/`. The Supabase GitHub integration a
 
 ```bash
 npx supabase migration new <name>   # create a migration file
+npm run db:types                     # regenerate src/lib/database.types.ts (needs `supabase login` + `supabase link`)
 ```
+
+Every table has row-level security so users only see their own data. `supabase/tests/` runs each migration against an in-memory Postgres ([PGlite](https://pglite.dev)) and checks those rules; it runs as part of `npm test`, with no Docker needed.
 
 CI runs typecheck, lint, format check, tests and build on every pull request.
 
