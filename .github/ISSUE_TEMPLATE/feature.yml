@@ -1,0 +1,35 @@
+name: Feature
+description: A piece of functionality to build
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What should this do, in a sentence or two?
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Good enough =
+      description: The smallest version that counts as finished. Resist adding polish here.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      options:
+        - S (under 2 hours)
+        - M (an afternoon)
+        - L (a day or more, consider splitting)
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Links, sketches, AI prompt ideas (optional)
