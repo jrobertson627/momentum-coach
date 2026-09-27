@@ -28,7 +28,7 @@ npm run format     # prettier
 
 ### Database changes
 
-Schema changes live in `supabase/migrations/`. The Supabase GitHub integration applies them to the hosted project when they merge to `main`.
+Schema changes live in `supabase/migrations/`. The file name's timestamp must match the version recorded in the hosted project's migration history, so a migration applied through the Supabase connector or CLI is saved here under that same version.
 
 ```bash
 npx supabase migration new <name>   # create a migration file
