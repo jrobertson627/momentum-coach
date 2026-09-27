@@ -1,0 +1,19 @@
+name: Parking-lot idea
+description: A new idea to capture and deal with later. Don't build it yet.
+labels: ["parking-lot"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got a shiny new idea mid-build? Write it here and go back to your current issue.
+        Parking-lot ideas are reviewed only after the current milestone is finished.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it might matter
