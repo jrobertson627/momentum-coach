@@ -52,3 +52,25 @@ body {
 .placeholder p {
   margin: 0;
 }
+
+.status {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.status::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+}
+
+.status-connected::before {
+  background: var(--accent);
+  opacity: 1;
+}
