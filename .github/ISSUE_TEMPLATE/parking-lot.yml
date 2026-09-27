@@ -1,6 +1,6 @@
 name: Parking-lot idea
 description: A new idea to capture and deal with later. Don't build it yet.
-labels: ["parking-lot"]
+labels: ['parking-lot']
 body:
   - type: markdown
     attributes:

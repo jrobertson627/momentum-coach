@@ -1,6 +1,6 @@
 name: Feature
 description: A piece of functionality to build
-labels: ["type:feature"]
+labels: ['type:feature']
 body:
   - type: textarea
     id: what
