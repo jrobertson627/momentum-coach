@@ -1,7 +1,6 @@
-// Types for the Supabase schema in supabase/migrations, in the same shape that
-// `supabase gen types typescript` produces. Once the CLI is linked to the
-// hosted project (`npx supabase login && npx supabase link`), regenerate with
-// `npm run db:types` instead of editing by hand.
+// Generated from the live Supabase project — do not edit by hand.
+// Regenerate after schema changes with `npm run db:types` (CLI, needs
+// `supabase login` + `supabase link`) or the Supabase connector.
 
 export type Json =
   | string
@@ -12,6 +11,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       ideas: {
@@ -44,11 +48,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'ideas_promoted_project_id_fkey'
-            columns: ['promoted_project_id']
+            foreignKeyName: "ideas_promoted_project_id_fkey"
+            columns: ["promoted_project_id"]
             isOneToOne: false
-            referencedRelation: 'projects'
-            referencedColumns: ['id']
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -59,7 +63,7 @@ export type Database = {
           finished_at: string | null
           id: string
           name: string
-          status: Database['public']['Enums']['project_status']
+          status: Database["public"]["Enums"]["project_status"]
           updated_at: string
           user_id: string
           why: string | null
@@ -70,7 +74,7 @@ export type Database = {
           finished_at?: string | null
           id?: string
           name: string
-          status?: Database['public']['Enums']['project_status']
+          status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
           user_id?: string
           why?: string | null
@@ -81,7 +85,7 @@ export type Database = {
           finished_at?: string | null
           id?: string
           name?: string
-          status?: Database['public']['Enums']['project_status']
+          status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
           user_id?: string
           why?: string | null
@@ -94,7 +98,7 @@ export type Database = {
           id: string
           minutes: number
           note: string | null
-          reason: Database['public']['Enums']['reward_reason']
+          reason: Database["public"]["Enums"]["reward_reason"]
           task_id: string | null
           user_id: string
         }
@@ -103,7 +107,7 @@ export type Database = {
           id?: string
           minutes: number
           note?: string | null
-          reason: Database['public']['Enums']['reward_reason']
+          reason: Database["public"]["Enums"]["reward_reason"]
           task_id?: string | null
           user_id?: string
         }
@@ -112,17 +116,17 @@ export type Database = {
           id?: string
           minutes?: number
           note?: string | null
-          reason?: Database['public']['Enums']['reward_reason']
+          reason?: Database["public"]["Enums"]["reward_reason"]
           task_id?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'reward_ledger_task_id_fkey'
-            columns: ['task_id']
+            foreignKeyName: "reward_ledger_task_id_fkey"
+            columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: 'tasks'
-            referencedColumns: ['id']
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -130,37 +134,37 @@ export type Database = {
         Row: {
           available_minutes: number | null
           created_at: string
-          energy: Database['public']['Enums']['energy_level'] | null
+          energy: Database["public"]["Enums"]["energy_level"] | null
           id: string
-          kind: Database['public']['Enums']['task_event_kind']
+          kind: Database["public"]["Enums"]["task_event_kind"]
           task_id: string
           user_id: string
         }
         Insert: {
           available_minutes?: number | null
           created_at?: string
-          energy?: Database['public']['Enums']['energy_level'] | null
+          energy?: Database["public"]["Enums"]["energy_level"] | null
           id?: string
-          kind: Database['public']['Enums']['task_event_kind']
+          kind: Database["public"]["Enums"]["task_event_kind"]
           task_id: string
           user_id?: string
         }
         Update: {
           available_minutes?: number | null
           created_at?: string
-          energy?: Database['public']['Enums']['energy_level'] | null
+          energy?: Database["public"]["Enums"]["energy_level"] | null
           id?: string
-          kind?: Database['public']['Enums']['task_event_kind']
+          kind?: Database["public"]["Enums"]["task_event_kind"]
           task_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'task_events_task_id_fkey'
-            columns: ['task_id']
+            foreignKeyName: "task_events_task_id_fkey"
+            columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: 'tasks'
-            referencedColumns: ['id']
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -170,13 +174,13 @@ export type Database = {
           created_at: string
           deferred_until: string | null
           due_date: string | null
-          energy: Database['public']['Enums']['energy_level']
+          energy: Database["public"]["Enums"]["energy_level"]
           estimated_minutes: number
           id: string
           importance: number
           project_id: string | null
           smaller_version: string | null
-          status: Database['public']['Enums']['task_status']
+          status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
           user_id: string
@@ -186,13 +190,13 @@ export type Database = {
           created_at?: string
           deferred_until?: string | null
           due_date?: string | null
-          energy?: Database['public']['Enums']['energy_level']
+          energy?: Database["public"]["Enums"]["energy_level"]
           estimated_minutes?: number
           id?: string
           importance?: number
           project_id?: string | null
           smaller_version?: string | null
-          status?: Database['public']['Enums']['task_status']
+          status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
           user_id?: string
@@ -202,24 +206,24 @@ export type Database = {
           created_at?: string
           deferred_until?: string | null
           due_date?: string | null
-          energy?: Database['public']['Enums']['energy_level']
+          energy?: Database["public"]["Enums"]["energy_level"]
           estimated_minutes?: number
           id?: string
           importance?: number
           project_id?: string | null
           smaller_version?: string | null
-          status?: Database['public']['Enums']['task_status']
+          status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'tasks_project_id_fkey'
-            columns: ['project_id']
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: 'projects'
-            referencedColumns: ['id']
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -237,11 +241,11 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      energy_level: 'low' | 'medium' | 'high'
-      project_status: 'active' | 'paused' | 'finished' | 'archived'
-      reward_reason: 'task_completed' | 'game_time' | 'adjustment'
-      task_event_kind: 'completed' | 'skipped' | 'deferred'
-      task_status: 'open' | 'done'
+      energy_level: "low" | "medium" | "high"
+      project_status: "active" | "paused" | "finished" | "archived"
+      reward_reason: "task_completed" | "game_time" | "adjustment"
+      task_event_kind: "completed" | "skipped" | "deferred"
+      task_status: "open" | "done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -249,13 +253,131 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database['public']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-export type Tables<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T]['Row']
-export type TablesInsert<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T]['Insert']
-export type TablesUpdate<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T]['Update']
-export type Enums<T extends keyof PublicSchema['Enums']> =
-  PublicSchema['Enums'][T]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      energy_level: ["low", "medium", "high"],
+      project_status: ["active", "paused", "finished", "archived"],
+      reward_reason: ["task_completed", "game_time", "adjustment"],
+      task_event_kind: ["completed", "skipped", "deferred"],
+      task_status: ["open", "done"],
+    },
+  },
+} as const
