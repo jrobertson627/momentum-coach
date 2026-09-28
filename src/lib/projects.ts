@@ -67,14 +67,6 @@ export async function updateProject(
   return data
 }
 
-/** Saves a would-be project to the parking lot instead of starting it. */
-export async function parkAsIdea(text: string, notes?: string): Promise<void> {
-  const { error } = await supabase
-    .from('ideas')
-    .insert({ text, notes: notes || null })
-  if (error) raise(error)
-}
-
 /** The changes that move a project to a new status. */
 export function statusChange(status: ProjectStatus): ProjectChanges {
   return {

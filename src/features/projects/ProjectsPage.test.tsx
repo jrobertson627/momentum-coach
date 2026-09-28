@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as ideasApi from '../../lib/ideas'
 import * as api from '../../lib/projects'
 import type { Project } from '../../lib/projects'
 import { ProjectsPage } from './ProjectsPage'
@@ -14,14 +15,18 @@ vi.mock('../../lib/projects', async (importOriginal) => {
     fetchProjects: vi.fn(),
     createProject: vi.fn(),
     updateProject: vi.fn(),
-    parkAsIdea: vi.fn(),
   }
+})
+
+vi.mock('../../lib/ideas', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/ideas')>()
+  return { ...actual, createIdea: vi.fn() }
 })
 
 const fetchProjects = vi.mocked(api.fetchProjects)
 const createProject = vi.mocked(api.createProject)
 const updateProject = vi.mocked(api.updateProject)
-const parkAsIdea = vi.mocked(api.parkAsIdea)
+const createIdea = vi.mocked(ideasApi.createIdea)
 
 let nextId = 0
 function project(overrides: Partial<Project>): Project {
@@ -104,7 +109,7 @@ describe('ProjectsPage', () => {
 
   describe('at the 3-project limit', () => {
     it('explains the limit and offers to park the idea instead', async () => {
-      parkAsIdea.mockResolvedValue()
+      createIdea.mockResolvedValue({} as ideasApi.Idea)
       const user = renderPage(threeActive)
 
       await fillNewProject(user, 'Learn Rust', 'Finish chapter 10')
@@ -120,7 +125,7 @@ describe('ProjectsPage', () => {
         screen.getByRole('button', { name: 'Park it as an idea' }),
       )
 
-      expect(parkAsIdea).toHaveBeenCalledWith(
+      expect(createIdea).toHaveBeenCalledWith(
         'Learn Rust',
         'Done when: Finish chapter 10',
       )

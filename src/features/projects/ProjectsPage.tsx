@@ -9,7 +9,9 @@ import {
 } from '../../lib/projects'
 import { ProjectCard } from './ProjectCard'
 import { ProjectForm, type ProjectFormValues } from './ProjectForm'
-import { useCreateProject, useParkIdea, useProjects } from './useProjects'
+import { parkedNotes } from '../../lib/ideas'
+import { useCreateIdea } from '../ideas/useIdeas'
+import { useCreateProject, useProjects } from './useProjects'
 
 export function ProjectsPage() {
   const { data: projects, isPending, error } = useProjects()
@@ -131,7 +133,7 @@ function NewProjectPanel({
   onDone: (parkedName: string | null) => void
 }) {
   const create = useCreateProject()
-  const park = useParkIdea()
+  const park = useCreateIdea()
   // The server may know about a project started on another device.
   const [limitHit, setLimitHit] = useState(false)
   const full = atLimit || limitHit
@@ -139,11 +141,8 @@ function NewProjectPanel({
     // Enter in a field submits via the first button, so "full" defaults to park.
     const intent = action ?? (full ? 'park' : 'start')
     if (intent === 'park') {
-      const notes = values.definition_of_done
-        ? `Done when: ${values.definition_of_done}`
-        : undefined
       park.mutate(
-        { text: values.name, notes },
+        { text: values.name, notes: parkedNotes(values.definition_of_done) },
         { onSuccess: () => onDone(values.name) },
       )
       return
