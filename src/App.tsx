@@ -1,8 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 import SignIn from './SignIn'
 import { Button } from './components/ui/Button'
-import { Card } from './components/ui/Card'
+import { ProjectsPage } from './features/projects/ProjectsPage'
 import { checkSupabase, supabase } from './lib/supabase'
 import { useSession } from './lib/useSession'
 
@@ -16,6 +17,53 @@ const statusText: Record<Status, string> = {
 
 function App() {
   const session = useSession()
+
+  if (session === undefined) return null
+  if (session === null) return <SignedOut />
+
+  return (
+    <div className="min-h-svh">
+      <AppHeader email={session.user.email} />
+      <main className="mx-auto w-full max-w-2xl px-4 py-8">
+        <ProjectsPage />
+      </main>
+    </div>
+  )
+}
+
+function AppHeader({ email }: { email?: string }) {
+  const queryClient = useQueryClient()
+
+  return (
+    <header className="border-b border-border bg-muted">
+      <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <img src="/logo.svg" alt="" width={28} height={28} />
+          <span className="font-serif text-lg font-semibold">
+            Momentum Coach
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden text-sm text-muted-foreground sm:inline">
+            {email}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              await supabase.auth.signOut()
+              queryClient.clear()
+            }}
+          >
+            Sign out
+          </Button>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function SignedOut() {
   const [status, setStatus] = useState<Status>('checking')
 
   useEffect(() => {
@@ -31,22 +79,7 @@ function App() {
       </p>
 
       <div className="mt-6 w-full">
-        {session === null && <SignIn />}
-        {session && (
-          <Card className="grid gap-3 text-left">
-            <p className="text-sm text-muted-foreground">
-              Signed in as{' '}
-              <strong className="text-foreground">{session.user.email}</strong>
-            </p>
-            <Button
-              variant="secondary"
-              className="justify-self-start"
-              onClick={() => supabase.auth.signOut()}
-            >
-              Sign out
-            </Button>
-          </Card>
-        )}
+        <SignIn />
       </div>
 
       <p
