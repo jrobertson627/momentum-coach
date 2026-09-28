@@ -179,6 +179,7 @@ export type Database = {
           id: string
           importance: number
           project_id: string | null
+          repeat: Json | null
           smaller_version: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
@@ -195,6 +196,7 @@ export type Database = {
           id?: string
           importance?: number
           project_id?: string | null
+          repeat?: Json | null
           smaller_version?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
@@ -211,6 +213,7 @@ export type Database = {
           id?: string
           importance?: number
           project_id?: string | null
+          repeat?: Json | null
           smaller_version?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
@@ -244,6 +247,7 @@ export type Database = {
           p_deferred_until?: string
           p_energy?: Database["public"]["Enums"]["energy_level"]
           p_kind: Database["public"]["Enums"]["task_event_kind"]
+          p_next_occurrence?: string
           p_task_id: string
         }
         Returns: {
@@ -256,6 +260,7 @@ export type Database = {
           id: string
           importance: number
           project_id: string | null
+          repeat: Json | null
           smaller_version: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
@@ -269,6 +274,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      is_valid_repeat: { Args: { r: Json }; Returns: boolean }
     }
     Enums: {
       energy_level: "low" | "medium" | "high"

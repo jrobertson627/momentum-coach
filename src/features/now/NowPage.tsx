@@ -8,6 +8,7 @@ import {
 } from '../../engine/recommend'
 import type { TaskAction } from '../../lib/actions'
 import { describeCheckIn, type CheckIn } from '../../lib/checkIn'
+import { nextOccurrence, parseRepeat } from '../../lib/repeat'
 import { creditsFor, SMALLER_STEP_MINUTES } from '../../lib/rewards'
 import { describeTask, type Task } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
@@ -147,11 +148,18 @@ function Recommendation({
   function onAct(requested: TaskAction) {
     if (!current) return
     const { task, useSmallerVersion } = current
-    // Done on a smaller version finishes the first step, not the whole task.
+    const repeat = parseRepeat(task.repeat)
+    // Done on a smaller version finishes the first step, not the whole task;
+    // a repeating task is scheduled to come back instead of being finished.
     const action: TaskAction =
       requested.kind === 'completed' && useSmallerVersion
         ? { kind: 'progressed' }
-        : requested
+        : requested.kind === 'completed' && repeat
+          ? {
+              kind: 'completed',
+              nextOccurrence: nextOccurrence(repeat, new Date()),
+            }
+          : requested
     setNotice(null)
     act.mutate(
       { taskId: task.id, action, checkIn },
@@ -164,13 +172,19 @@ function Recommendation({
               title: task.title,
               step: null,
               earned: creditsFor(task.estimated_minutes),
-              project: project ? { id: project.id, name: project.name } : null,
+              backOn: action.nextOccurrence ?? null,
+              // A routine doesn't need a "next step"; it comes back by itself.
+              project:
+                project && !action.nextOccurrence
+                  ? { id: project.id, name: project.name }
+                  : null,
             })
           } else if (action.kind === 'progressed') {
             setCompleted({
               title: task.title,
               step: task.smaller_version,
               earned: creditsFor(SMALLER_STEP_MINUTES),
+              backOn: null,
               project: null,
             })
           } else if (action.kind === 'skipped') {

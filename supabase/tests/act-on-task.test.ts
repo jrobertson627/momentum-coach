@@ -224,3 +224,89 @@ describe('rewards and first steps', () => {
     ).rejects.toThrow(/Not enough game-time credits/)
   })
 })
+
+describe('repeating tasks', () => {
+  async function newRepeating(repeat: object | null) {
+    const { rows } = await db.query<{ id: string }>(
+      `insert into public.tasks (title, estimated_minutes, repeat)
+       values ('Tidy desk', 10, $1) returning id`,
+      [repeat === null ? null : JSON.stringify(repeat)],
+    )
+    return rows[0].id
+  }
+
+  async function complete(id: string, next: string | null) {
+    const { rows } = await db.query<TaskRow>(
+      `select status, completed_at, deferred_until
+         from public.act_on_task($1, 'completed', 25, 'low', null, $2)`,
+      [id, next],
+    )
+    return rows[0]
+  }
+
+  it('accepts every valid pattern', async () => {
+    await actAs(db, alice)
+    for (const repeat of [
+      { kind: 'daily' },
+      { kind: 'weekdays', days: [1, 3, 5] },
+      { kind: 'interval', every: 2, unit: 'week' },
+      { kind: 'monthly', day: 31 },
+    ]) {
+      await newRepeating(repeat)
+    }
+  })
+
+  it('rejects malformed patterns', async () => {
+    await actAs(db, alice)
+    for (const repeat of [
+      { kind: 'yearly' },
+      { kind: 'weekdays', days: [] },
+      { kind: 'weekdays', days: [7] },
+      { kind: 'weekdays', days: ['1'] },
+      { kind: 'interval', every: 0, unit: 'day' },
+      { kind: 'interval', every: 2, unit: 'month' },
+      { kind: 'monthly', day: 32 },
+      [1, 2],
+    ]) {
+      await expect(newRepeating(repeat)).rejects.toThrow(/tasks_repeat_valid/)
+    }
+  })
+
+  it('completing brings it back on its next date instead of finishing it', async () => {
+    await actAs(db, alice)
+    const id = await newRepeating({ kind: 'daily' })
+    const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+
+    const task = await complete(id, tomorrow)
+
+    expect(task.status).toBe('open')
+    expect(task.completed_at).toBeInstanceOf(Date)
+    expect(task.deferred_until?.toISOString()).toBe(tomorrow)
+    expect((await events()).map((e) => e.kind)).toEqual(['completed'])
+    const { rows } = await db.query<{ minutes: number }>(
+      'select minutes from public.reward_balances',
+    )
+    expect(rows[0].minutes).toBe(creditsFor(10))
+  })
+
+  it('needs a next date in the future', async () => {
+    await actAs(db, alice)
+    const id = await newRepeating({ kind: 'daily' })
+
+    await expect(complete(id, null)).rejects.toThrow(/needs its next date/)
+    await expect(complete(id, '2020-01-01T00:00:00Z')).rejects.toThrow(
+      /needs its next date/,
+    )
+    expect(await events()).toEqual([])
+  })
+
+  it('one-off tasks still finish, ignoring any next date', async () => {
+    await actAs(db, alice)
+    const id = await newRepeating(null)
+    const task = await complete(
+      id,
+      new Date(Date.now() + 3600 * 1000).toISOString(),
+    )
+    expect(task.status).toBe('done')
+  })
+})

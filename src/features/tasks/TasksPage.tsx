@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card'
 import type { Project } from '../../lib/projects'
 import { describeTask, groupTasks, type Task } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
+import { parseRepeat, describeRepeat } from '../../lib/repeat'
 import { BulkAddForm } from './BulkAddForm'
 import { TaskForm } from './TaskForm'
 import {
@@ -179,7 +180,22 @@ function NewTask({
   )
 }
 
+/** When a deferred or repeating task becomes available again, if later. */
+function restingUntil(task: Task, now = new Date()): Date | null {
+  if (!task.deferred_until) return null
+  const until = new Date(task.deferred_until)
+  return until > now ? until : null
+}
+
+const backFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+})
+
 function TaskItem({ task, projects }: { task: Task; projects: Project[] }) {
+  const repeat = parseRepeat(task.repeat)
+  const resting = restingUntil(task)
   const update = useUpdateTask()
   const remove = useDeleteTask()
   const [mode, setMode] = useState<'view' | 'edit' | 'confirm-delete'>('view')
@@ -226,6 +242,16 @@ function TaskItem({ task, projects }: { task: Task; projects: Project[] }) {
         <div className="grid gap-0.5">
           <p className="font-medium">{task.title}</p>
           <p className="text-xs text-muted-foreground">{describeTask(task)}</p>
+          {(repeat || resting) && (
+            <p className="text-xs text-accent">
+              {[
+                repeat && describeRepeat(repeat),
+                resting && `Back ${backFormat.format(resting)}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          )}
           {task.smaller_version && (
             <p className="text-xs text-muted-foreground">
               Smaller: {task.smaller_version}

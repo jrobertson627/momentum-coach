@@ -3,7 +3,8 @@ import { supabase } from './supabase'
 import type { Task } from './tasks'
 
 export type TaskAction =
-  | { kind: 'completed' }
+  /** nextOccurrence is required for repeating tasks: when it comes back. */
+  | { kind: 'completed'; nextOccurrence?: Date }
   /** Finished the task's smaller version: progress, the task stays open. */
   | { kind: 'progressed' }
   | { kind: 'skipped' }
@@ -25,6 +26,10 @@ export async function actOnTask(
     p_energy: checkIn.energy,
     p_deferred_until:
       action.kind === 'deferred' ? action.until.toISOString() : undefined,
+    p_next_occurrence:
+      action.kind === 'completed'
+        ? action.nextOccurrence?.toISOString()
+        : undefined,
   })
   if (error) throw new Error(error.message)
   return data

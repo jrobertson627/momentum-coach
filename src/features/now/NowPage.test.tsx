@@ -48,6 +48,7 @@ function task(title: string, overrides: Partial<Task> = {}): Task {
     importance: 2,
     due_date: null,
     smaller_version: null,
+    repeat: null,
     status: 'open',
     deferred_until: null,
     completed_at: null,
@@ -292,6 +293,31 @@ describe('NowPage', () => {
         '“Write three bullet points” is done. “Write the report” stays on your list',
       )
       expect(panel).toHaveTextContent('+5 min of game time')
+      expect(
+        screen.queryByLabelText(/What’s the next step/),
+      ).not.toBeInTheDocument()
+    })
+
+    it('a repeating task comes back on its next date', async () => {
+      const gym = task('Orangetheory', {
+        project_id: 'tracker',
+        repeat: { kind: 'daily' },
+      })
+      actOnTask.mockResolvedValue(gym)
+      const { user } = renderPage([gym], [tracker])
+      await checkIn(user)
+
+      await user.click(screen.getByRole('button', { name: 'Done' }))
+
+      expect(actOnTask).toHaveBeenCalledWith(
+        'Orangetheory',
+        { kind: 'completed', nextOccurrence: actionsApi.startOfDayIn(1) },
+        { minutes: 25, energy: 'medium' },
+      )
+      expect(
+        await screen.findByText(/is done for now\. See you again/),
+      ).toBeVisible()
+      // A routine doesn't ask for a next step.
       expect(
         screen.queryByLabelText(/What’s the next step/),
       ).not.toBeInTheDocument()

@@ -3,12 +3,20 @@ import { Button } from '../../components/ui/Button'
 import { formatCredits } from '../../lib/rewards'
 import { useCreateTask } from '../tasks/useTasks'
 
+const backFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
+})
+
 export type CompletedProps = {
   title: string
   /** Set when only the task's smaller version (a first step) was done. */
   step: string | null
   /** Game-time minutes earned. */
   earned: number
+  /** For repeating tasks: when it comes back. */
+  backOn: Date | null
   /** For finished project tasks: ask for the project's next step. */
   project: { id: string; name: string } | null
 }
@@ -21,6 +29,7 @@ export function Completed({
   title,
   step,
   earned,
+  backOn,
   project,
   onContinue,
 }: CompletedProps & { onContinue: () => void }) {
@@ -53,7 +62,9 @@ export function Completed({
         <p className="text-sm text-muted-foreground">
           {step
             ? `“${step}” is done. “${title}” stays on your list, a little lighter.`
-            : `“${title}” is finished.`}
+            : backOn
+              ? `“${title}” is done for now. See you again ${backFormat.format(backOn)}.`
+              : `“${title}” is finished.`}
         </p>
         <p className="mt-2 text-sm font-medium text-accent">
           +{formatCredits(earned)} of game time

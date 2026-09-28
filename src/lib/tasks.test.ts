@@ -34,6 +34,7 @@ function task(overrides: Partial<Task>): Task {
     importance: 2,
     due_date: null,
     smaller_version: null,
+    repeat: null,
     status: 'open',
     deferred_until: null,
     completed_at: null,

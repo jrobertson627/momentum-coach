@@ -1,7 +1,9 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import type { Project } from '../../lib/projects'
 import type { Energy, TaskFields } from '../../lib/tasks'
+import { parseRepeat } from '../../lib/repeat'
 import { EffortFields } from './EffortFields'
+import { RepeatField } from './RepeatField'
 
 const inputClass =
   'rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground'
@@ -33,6 +35,7 @@ export function TaskForm({
   const [importance, setImportance] = useState(initial?.importance ?? 2)
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '')
   const [smaller, setSmaller] = useState(initial?.smaller_version ?? '')
+  const [repeat, setRepeat] = useState(() => parseRepeat(initial?.repeat))
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -44,6 +47,7 @@ export function TaskForm({
       importance,
       due_date: dueDate || null,
       smaller_version: smaller.trim() || null,
+      repeat,
     })
   }
 
@@ -93,6 +97,8 @@ export function TaskForm({
         importance={importance}
         onImportanceChange={setImportance}
       />
+
+      <RepeatField value={repeat} onChange={setRepeat} />
 
       <div className="grid gap-1.5">
         <label htmlFor={`${id}-due`} className="text-sm font-medium">
