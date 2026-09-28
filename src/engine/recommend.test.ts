@@ -191,6 +191,25 @@ describe('recommend', () => {
     })
   })
 
+  it('counts a finished first step as project progress', () => {
+    const projects = [
+      project('stepped', { created_at: daysAgo(20) }),
+      project('idle', { created_at: daysAgo(20) }),
+    ]
+    const events = [event('big', 'progressed', daysAgo(0, 1), 'stepped')]
+    const tasks = [
+      task('stepped step', { project_id: 'stepped' }),
+      task('idle step', { project_id: 'idle' }),
+    ]
+    const ranked = rankTasks(input(tasks, { projects, events }))
+    expect(ranked[0].task.id).toBe('idle step')
+    expect(
+      ranked
+        .find((r) => r.task.id === 'stepped step')!
+        .factors.find((f) => f.key === 'neglect'),
+    ).toMatchObject({ daysSinceProgress: 0 })
+  })
+
   it('does not repeat a task you just skipped', () => {
     const tasks = [
       task('skipped', { importance: 3 }),

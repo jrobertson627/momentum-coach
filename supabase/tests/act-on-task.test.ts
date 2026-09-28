@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { creditsFor, SMALLER_STEP_MINUTES } from '../../src/lib/rewards.ts'
 import { actAs, createTestDb, createUser, type TestDb } from './db.ts'
 
 let db: TestDb
@@ -137,5 +138,89 @@ describe('act_on_task', () => {
 
     await actAs(db, null)
     await expect(act(id, 'completed')).rejects.toThrow(/permission denied/)
+  })
+})
+
+describe('rewards and first steps', () => {
+  async function newSizedTask(estimatedMinutes: number, smaller?: string) {
+    const { rows } = await db.query<{ id: string }>(
+      `insert into public.tasks (title, estimated_minutes, smaller_version)
+       values ('Write report', $1, $2) returning id`,
+      [estimatedMinutes, smaller ?? null],
+    )
+    return rows[0].id
+  }
+
+  async function balance() {
+    const { rows } = await db.query<{ minutes: number }>(
+      'select minutes from public.reward_balances',
+    )
+    return rows[0]?.minutes ?? 0
+  }
+
+  it('completing a task earns credits, matching the app’s formula', async () => {
+    await actAs(db, alice)
+    await act(await newSizedTask(25), 'completed')
+    await act(await newSizedTask(1), 'completed')
+
+    expect(await balance()).toBe(creditsFor(25) + creditsFor(1))
+    expect(creditsFor(25)).toBe(13)
+    expect(creditsFor(1)).toBe(1)
+  })
+
+  it('skipping and deferring earn nothing', async () => {
+    await actAs(db, alice)
+    const id = await newSizedTask(60)
+    await act(id, 'skipped')
+    await act(id, 'deferred', new Date(Date.now() + 3600 * 1000).toISOString())
+
+    expect(await balance()).toBe(0)
+  })
+
+  it('finishing a first step keeps the task open and clears the step', async () => {
+    await actAs(db, alice)
+    const id = await newSizedTask(90, 'Outline it')
+
+    const task = await act(id, 'progressed')
+
+    expect(task.status).toBe('open')
+    const { rows } = await db.query<{ smaller_version: string | null }>(
+      'select smaller_version from public.tasks where id = $1',
+      [id],
+    )
+    expect(rows[0].smaller_version).toBeNull()
+    expect((await events()).map((e) => e.kind)).toEqual(['progressed'])
+    expect(await balance()).toBe(creditsFor(SMALLER_STEP_MINUTES))
+  })
+
+  it('spending game time reduces the balance but never below zero', async () => {
+    await actAs(db, alice)
+    await act(await newSizedTask(40), 'completed') // earns 20
+
+    await db.query(
+      `insert into public.reward_ledger (minutes, reason, note)
+       values (-15, 'game_time', 'Stardew Valley')`,
+    )
+    expect(await balance()).toBe(5)
+
+    await expect(
+      db.query(
+        `insert into public.reward_ledger (minutes, reason) values (-6, 'game_time')`,
+      ),
+    ).rejects.toThrow(/Not enough game-time credits/)
+    expect(await balance()).toBe(5)
+  })
+
+  it('credits are per user', async () => {
+    await actAs(db, alice)
+    await act(await newSizedTask(40), 'completed')
+
+    await actAs(db, bob)
+    expect(await balance()).toBe(0)
+    await expect(
+      db.query(
+        `insert into public.reward_ledger (minutes, reason) values (-1, 'game_time')`,
+      ),
+    ).rejects.toThrow(/Not enough game-time credits/)
   })
 })

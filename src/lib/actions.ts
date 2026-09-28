@@ -4,6 +4,8 @@ import type { Task } from './tasks'
 
 export type TaskAction =
   | { kind: 'completed' }
+  /** Finished the task's smaller version: progress, the task stays open. */
+  | { kind: 'progressed' }
   | { kind: 'skipped' }
   | { kind: 'deferred'; until: Date }
 

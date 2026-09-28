@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as actionsApi from '../../lib/actions'
 import * as eventsApi from '../../lib/events'
+import * as gameTimeApi from '../../lib/gameTime'
 import * as projectsApi from '../../lib/projects'
 import * as tasksApi from '../../lib/tasks'
 import type { Task } from '../../lib/tasks'
@@ -15,6 +16,10 @@ vi.mock('../../lib/tasks', async (importOriginal) => {
   return { ...actual, fetchOpenTasks: vi.fn(), createTask: vi.fn() }
 })
 vi.mock('../../lib/events', () => ({ fetchRecentEvents: vi.fn() }))
+vi.mock('../../lib/gameTime', () => ({
+  fetchGameTimeBalance: vi.fn(),
+  spendGameTime: vi.fn(),
+}))
 vi.mock('../../lib/actions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/actions')>()
   return { ...actual, actOnTask: vi.fn() }
@@ -29,6 +34,8 @@ const fetchProjects = vi.mocked(projectsApi.fetchProjects)
 const fetchRecentEvents = vi.mocked(eventsApi.fetchRecentEvents)
 const actOnTask = vi.mocked(actionsApi.actOnTask)
 const createTask = vi.mocked(tasksApi.createTask)
+const fetchGameTimeBalance = vi.mocked(gameTimeApi.fetchGameTimeBalance)
+const spendGameTime = vi.mocked(gameTimeApi.spendGameTime)
 
 function task(title: string, overrides: Partial<Task> = {}): Task {
   return {
@@ -50,7 +57,12 @@ function task(title: string, overrides: Partial<Task> = {}): Task {
   }
 }
 
-function renderPage(tasks: Task[], projects: projectsApi.Project[] = []) {
+function renderPage(
+  tasks: Task[],
+  projects: projectsApi.Project[] = [],
+  balance = 0,
+) {
+  fetchGameTimeBalance.mockResolvedValue(balance)
   fetchOpenTasks.mockResolvedValue(tasks)
   fetchProjects.mockResolvedValue(projects)
   fetchRecentEvents.mockResolvedValue([])
@@ -238,6 +250,8 @@ describe('NowPage', () => {
         { minutes: 25, energy: 'medium' },
       )
       expect(await screen.findByText('Nice work.')).toBeVisible()
+      // 25 min of effort earns 13 min of game time.
+      expect(screen.getByText('+13 min of game time')).toBeVisible()
 
       await user.type(
         screen.getByLabelText('What’s the next step for Workout tracker?'),
@@ -251,6 +265,36 @@ describe('NowPage', () => {
       expect(
         await screen.findByRole('region', { name: 'Your next step' }),
       ).toBeVisible()
+    })
+
+    it('finishing a smaller version is a first step, not the whole task', async () => {
+      const report = task('Write the report', {
+        estimated_minutes: 120,
+        smaller_version: 'Write three bullet points',
+      })
+      actOnTask.mockResolvedValue({ ...report, smaller_version: null })
+      const { user } = renderPage([report])
+      await user.click(screen.getByRole('radio', { name: '10 min' }))
+      await user.click(screen.getByRole('radio', { name: 'Medium' }))
+      await screen.findByRole('region', { name: 'Start small' })
+
+      await user.click(screen.getByRole('button', { name: 'Done' }))
+
+      expect(actOnTask).toHaveBeenCalledWith(
+        'Write the report',
+        { kind: 'progressed' },
+        { minutes: 10, energy: 'medium' },
+      )
+      const panel = await screen.findByRole('region', {
+        name: 'First step done',
+      })
+      expect(panel).toHaveTextContent(
+        '“Write three bullet points” is done. “Write the report” stays on your list',
+      )
+      expect(panel).toHaveTextContent('+5 min of game time')
+      expect(
+        screen.queryByLabelText(/What’s the next step/),
+      ).not.toBeInTheDocument()
     })
 
     it('finishing a chore just moves on', async () => {
@@ -339,6 +383,68 @@ describe('NowPage', () => {
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Task not found',
+      )
+    })
+  })
+
+  describe('game time', () => {
+    it('shows the balance on the home screen', async () => {
+      renderPage([], [], 95)
+      expect(
+        await screen.findByRole('region', { name: 'Game time' }),
+      ).toHaveTextContent('Game time: 1 h 35 min')
+    })
+
+    it('encourages earning some when the balance is empty', async () => {
+      renderPage([], [], 0)
+      expect(
+        await screen.findByText('Finish a task to earn some.'),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('button', { name: 'Play' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('spends game time, with an optional note', async () => {
+      spendGameTime.mockResolvedValue()
+      const { user } = renderPage([], [], 40)
+
+      await user.click(await screen.findByRole('button', { name: 'Play' }))
+      // More than the balance can't be chosen.
+      expect(screen.getByRole('button', { name: '60 min' })).toBeDisabled()
+      await user.click(screen.getByRole('button', { name: '30 min' }))
+      await user.type(screen.getByLabelText(/What are you playing/), 'Stardew')
+      await user.click(screen.getByRole('button', { name: 'Start playing' }))
+
+      expect(spendGameTime).toHaveBeenCalledWith(30, 'Stardew')
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Enjoy 30 min of Stardew. You earned it.',
+      )
+    })
+
+    it('won’t start with more minutes than the balance', async () => {
+      const { user } = renderPage([], [], 20)
+
+      await user.click(await screen.findByRole('button', { name: 'Play' }))
+      await user.type(screen.getByLabelText('Minutes'), '25')
+
+      expect(
+        screen.getByRole('button', { name: 'Start playing' }),
+      ).toBeDisabled()
+    })
+
+    it('shows the database’s refusal kindly', async () => {
+      spendGameTime.mockRejectedValue(
+        new Error('That’s more game time than you have right now.'),
+      )
+      const { user } = renderPage([], [], 20)
+
+      await user.click(await screen.findByRole('button', { name: 'Play' }))
+      await user.click(screen.getByRole('button', { name: '15 min' }))
+      await user.click(screen.getByRole('button', { name: 'Start playing' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'more game time than you have',
       )
     })
   })
