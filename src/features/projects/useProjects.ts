@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createProject,
   fetchProjects,
-  parkAsIdea,
   updateProject,
   type NewProject,
   type ProjectChanges,
@@ -28,14 +27,5 @@ export function useUpdateProject() {
     mutationFn: ({ id, changes }: { id: string; changes: ProjectChanges }) =>
       updateProject(id, changes),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: projectsKey }),
-  })
-}
-
-export function useParkIdea() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ text, notes }: { text: string; notes?: string }) =>
-      parkAsIdea(text, notes),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ideas'] }),
   })
 }
