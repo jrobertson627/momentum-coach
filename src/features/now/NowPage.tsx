@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import { describeCheckIn, tasksThatFit, type CheckIn } from '../../lib/checkIn'
+import { rankTasks } from '../../engine/recommend'
+import { describeCheckIn, type CheckIn } from '../../lib/checkIn'
 import { describeTask } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
 import { useOpenTasks } from '../tasks/useTasks'
 import { CheckInForm } from './CheckInForm'
+import { useRecentEvents } from './useRecentEvents'
 
 const STORAGE_KEY = 'momentum:check-in'
 
@@ -64,10 +66,7 @@ export function NowPage() {
   return <Recommendation checkIn={checkIn} onChange={() => setEditing(true)} />
 }
 
-/**
- * The recommendation screen. Until the engine lands (#11) it lists every task
- * that fits the check-in; the engine will narrow this to one explained pick.
- */
+/** The recommendation screen: one pick for right now, with other options. */
 function Recommendation({
   checkIn,
   onChange,
@@ -77,12 +76,26 @@ function Recommendation({
 }) {
   const tasks = useOpenTasks()
   const projects = useProjects()
+  const events = useRecentEvents()
 
-  const error = tasks.error ?? projects.error
-  const fits =
-    tasks.data && projects.data
-      ? tasksThatFit(tasks.data, projects.data, checkIn)
-      : null
+  const error = tasks.error ?? projects.error ?? events.error
+  const ranked = useMemo(
+    () =>
+      tasks.data && projects.data && events.data
+        ? rankTasks({
+            tasks: tasks.data,
+            projects: projects.data,
+            events: events.data,
+            checkIn,
+            now: new Date(),
+          })
+        : null,
+    [tasks.data, projects.data, events.data, checkIn],
+  )
+
+  const [best, ...others] = ranked ?? []
+  const projectName = (id: string | null) =>
+    projects.data?.find((p) => p.id === id)?.name
 
   return (
     <div className="grid gap-6">
@@ -100,11 +113,11 @@ function Recommendation({
           Couldn’t load your tasks: {error.message}
         </p>
       )}
-      {!error && !fits && (
+      {!error && !ranked && (
         <p className="text-sm text-muted-foreground">Finding what fits…</p>
       )}
 
-      {fits && fits.length === 0 && (
+      {ranked && !best && (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
           Nothing on your list fits right now. That’s okay: rest counts too. Or
           add a smaller task in the{' '}
@@ -115,25 +128,62 @@ function Recommendation({
         </p>
       )}
 
-      {fits && fits.length > 0 && (
-        <section aria-labelledby="fits-heading" className="grid gap-3">
-          <h2 id="fits-heading" className="text-xl font-semibold">
-            Things that fit
-          </h2>
-          <ul className="grid gap-2">
-            {fits.map((task) => (
-              <li
-                key={task.id}
-                className="rounded-lg border border-border bg-muted px-4 py-3 shadow-sm"
-              >
-                <p className="font-medium">{task.title}</p>
+      {best && (
+        <section
+          aria-labelledby="pick-heading"
+          className="grid gap-3 rounded-lg border border-accent/40 bg-muted p-6 shadow-md"
+        >
+          <p
+            id="pick-heading"
+            className="text-xs font-medium tracking-wide text-accent uppercase"
+          >
+            {best.useSmallerVersion ? 'Start small' : 'Your next step'}
+          </p>
+          {best.useSmallerVersion ? (
+            <>
+              <h2 className="text-2xl font-semibold">
+                {best.task.smaller_version}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                A first step toward “{best.task.title}”
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-semibold">{best.task.title}</h2>
+              <p className="text-sm text-muted-foreground">
+                {describeTask(best.task)}
+              </p>
+            </>
+          )}
+          {best.task.project_id && (
+            <p className="text-sm">
+              For <strong>{projectName(best.task.project_id)}</strong>
+            </p>
+          )}
+        </section>
+      )}
+
+      {others.length > 0 && (
+        <details className="group rounded-lg border border-border bg-muted px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Other options ({others.length})
+          </summary>
+          <ul className="mt-3 grid gap-2">
+            {others.map(({ task, useSmallerVersion }) => (
+              <li key={task.id} className="border-t border-border pt-2">
+                <p className="text-sm font-medium">
+                  {useSmallerVersion ? task.smaller_version : task.title}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {describeTask(task)}
+                  {useSmallerVersion
+                    ? `First step toward “${task.title}”`
+                    : describeTask(task)}
                 </p>
               </li>
             ))}
           </ul>
-        </section>
+        </details>
       )}
     </div>
   )

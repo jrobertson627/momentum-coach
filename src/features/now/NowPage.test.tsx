@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as eventsApi from '../../lib/events'
 import * as projectsApi from '../../lib/projects'
 import * as tasksApi from '../../lib/tasks'
 import type { Task } from '../../lib/tasks'
@@ -12,6 +13,7 @@ vi.mock('../../lib/tasks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/tasks')>()
   return { ...actual, fetchOpenTasks: vi.fn() }
 })
+vi.mock('../../lib/events', () => ({ fetchRecentEvents: vi.fn() }))
 vi.mock('../../lib/projects', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/projects')>()
   return { ...actual, fetchProjects: vi.fn() }
@@ -19,6 +21,7 @@ vi.mock('../../lib/projects', async (importOriginal) => {
 
 const fetchOpenTasks = vi.mocked(tasksApi.fetchOpenTasks)
 const fetchProjects = vi.mocked(projectsApi.fetchProjects)
+const fetchRecentEvents = vi.mocked(eventsApi.fetchRecentEvents)
 
 function task(title: string, overrides: Partial<Task> = {}): Task {
   return {
@@ -43,6 +46,7 @@ function task(title: string, overrides: Partial<Task> = {}): Task {
 function renderPage(tasks: Task[]) {
   fetchOpenTasks.mockResolvedValue(tasks)
   fetchProjects.mockResolvedValue([])
+  fetchRecentEvents.mockResolvedValue([])
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -83,6 +87,43 @@ describe('NowPage', () => {
 
     await user.click(screen.getByRole('radio', { name: '60+ min' }))
     expect(screen.getByText('an hour or more and high energy')).toBeVisible()
+  })
+
+  it('recommends one task and tucks the rest under other options', async () => {
+    const { user } = renderPage([
+      task('Laundry', { estimated_minutes: 20, energy: 'low', importance: 1 }),
+      task('Renew registration', {
+        estimated_minutes: 15,
+        energy: 'low',
+        importance: 3,
+      }),
+    ])
+
+    await user.click(screen.getByRole('radio', { name: '25 min' }))
+    await user.click(screen.getByRole('radio', { name: 'Low' }))
+
+    const pick = await screen.findByRole('region', { name: 'Your next step' })
+    expect(pick).toHaveTextContent('Renew registration')
+    expect(pick).not.toHaveTextContent('Laundry')
+
+    await user.click(screen.getByText('Other options (1)'))
+    expect(screen.getByText('Laundry')).toBeVisible()
+  })
+
+  it('suggests the smaller version when the whole task is too big', async () => {
+    const { user } = renderPage([
+      task('Write the report', {
+        estimated_minutes: 120,
+        smaller_version: 'Write three bullet points',
+      }),
+    ])
+
+    await user.click(screen.getByRole('radio', { name: '10 min' }))
+    await user.click(screen.getByRole('radio', { name: 'Medium' }))
+
+    const pick = await screen.findByRole('region', { name: 'Start small' })
+    expect(pick).toHaveTextContent('Write three bullet points')
+    expect(pick).toHaveTextContent('A first step toward “Write the report”')
   })
 
   it('is gentle when nothing fits', async () => {
