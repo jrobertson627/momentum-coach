@@ -18,6 +18,7 @@ export type TaskFields = Pick<
   | 'importance'
   | 'due_date'
   | 'smaller_version'
+  | 'repeat'
 >
 export type TaskChanges = Pick<TablesUpdate<'tasks'>, keyof TaskFields>
 

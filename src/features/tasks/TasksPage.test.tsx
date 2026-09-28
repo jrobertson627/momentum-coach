@@ -55,6 +55,7 @@ function task(overrides: Partial<Task>): Task {
     importance: 2,
     due_date: null,
     smaller_version: null,
+    repeat: null,
     status: 'open',
     deferred_until: null,
     completed_at: null,
@@ -154,6 +155,7 @@ describe('TasksPage', () => {
       importance: 3,
       due_date: '2026-10-03',
       smaller_version: 'Sketch the chart on paper',
+      repeat: null,
     })
   })
 
@@ -175,6 +177,7 @@ describe('TasksPage', () => {
       importance: 2,
       due_date: null,
       smaller_version: null,
+      repeat: null,
     })
   })
 
@@ -241,6 +244,84 @@ describe('TasksPage', () => {
       expect.objectContaining({ title: 'Laundry', project_id: null }),
       expect.objectContaining({ title: 'Dishes', project_id: null }),
     ])
+  })
+
+  it('sets a task to repeat on certain weekdays', async () => {
+    createTask.mockResolvedValue(laundry)
+    const user = renderPage([])
+
+    const chores = await screen.findByRole('region', {
+      name: 'Chores & obligations',
+    })
+    await user.click(within(chores).getByRole('button', { name: 'Add task' }))
+    await user.type(within(chores).getByLabelText('Task'), 'Orangetheory')
+    await user.selectOptions(
+      within(chores).getByLabelText('Repeats'),
+      'On certain days',
+    )
+    // Mon, Wed, Fri are preselected; drop Friday, add Saturday.
+    await user.click(within(chores).getByRole('button', { name: 'Friday' }))
+    await user.click(within(chores).getByRole('button', { name: 'Saturday' }))
+    await user.click(within(chores).getByRole('button', { name: 'Add task' }))
+
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Orangetheory',
+        repeat: { kind: 'weekdays', days: [1, 3, 6] },
+      }),
+    )
+  })
+
+  it('sets every-N and monthly repeats', async () => {
+    createTask.mockResolvedValue(laundry)
+    const user = renderPage([])
+    const chores = await screen.findByRole('region', {
+      name: 'Chores & obligations',
+    })
+
+    await user.click(within(chores).getByRole('button', { name: 'Add task' }))
+    await user.type(within(chores).getByLabelText('Task'), 'Water plants')
+    await user.selectOptions(
+      within(chores).getByLabelText('Repeats'),
+      'Every few days or weeks',
+    )
+    const every = within(chores).getByLabelText('Every')
+    await user.clear(every)
+    await user.type(every, '3')
+    await user.click(within(chores).getByRole('button', { name: 'Add task' }))
+    expect(createTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        repeat: { kind: 'interval', every: 3, unit: 'day' },
+      }),
+    )
+
+    await user.click(within(chores).getByRole('button', { name: 'Add task' }))
+    await user.type(within(chores).getByLabelText('Task'), 'Pay rent')
+    await user.selectOptions(
+      within(chores).getByLabelText('Repeats'),
+      'Monthly',
+    )
+    const monthDay = within(chores).getByLabelText('On day')
+    await user.clear(monthDay)
+    await user.type(monthDay, '1')
+    await user.click(within(chores).getByRole('button', { name: 'Add task' }))
+    expect(createTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ repeat: { kind: 'monthly', day: 1 } }),
+    )
+  })
+
+  it('shows the repeat pattern and when a resting task comes back', async () => {
+    renderPage([
+      task({
+        title: 'Orangetheory',
+        repeat: { kind: 'weekdays', days: [1, 3, 5] },
+        deferred_until: '2099-01-02T00:00:00Z',
+      }),
+    ])
+
+    const item = (await screen.findByText('Orangetheory')).closest('li')!
+    expect(item).toHaveTextContent('Repeats Mon, Wed, Fri')
+    expect(item).toHaveTextContent('Back ')
   })
 
   it('edits a task and can move it to a project', async () => {
