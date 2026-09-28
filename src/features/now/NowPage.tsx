@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { explain } from '../../engine/explain'
 import { rankTasks } from '../../engine/recommend'
 import { describeCheckIn, type CheckIn } from '../../lib/checkIn'
 import { describeTask } from '../../lib/tasks'
@@ -161,6 +162,9 @@ function Recommendation({
               For <strong>{projectName(best.task.project_id)}</strong>
             </p>
           )}
+          <p className="border-t border-border pt-3 text-sm text-muted-foreground">
+            {explain(best)}
+          </p>
         </section>
       )}
 
