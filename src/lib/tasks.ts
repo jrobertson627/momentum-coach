@@ -54,6 +54,39 @@ export async function createTask(task: TaskFields): Promise<Task> {
   return data
 }
 
+/** Creates several tasks in one request (one database round trip). */
+export async function createTasks(tasks: TaskFields[]): Promise<Task[]> {
+  const { data, error } = await supabase.from('tasks').insert(tasks).select()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+/** Task titles are limited to this many characters in the database. */
+export const TITLE_MAX = 200
+
+const LINE_BREAK = /\r?\n/
+const LIST_MARKER = /^(?:[-*•]|\d+[.)])\s+/
+const CHECKBOX = /^\[[ xX]?\]\s*/
+
+/**
+ * Turns pasted or typed text into task titles, one per line. Blank lines and
+ * list markers ("-", "*", "•", "1.", "2)", "[ ]") are ignored so a list copied
+ * from notes works as-is.
+ */
+export function parseTaskLines(text: string): string[] {
+  return text
+    .split(LINE_BREAK)
+    .map((line) =>
+      line
+        .trim()
+        .replace(LIST_MARKER, '')
+        .replace(CHECKBOX, '')
+        .trim()
+        .slice(0, TITLE_MAX),
+    )
+    .filter((line) => line.length > 0)
+}
+
 export async function updateTask(
   id: string,
   changes: TaskChanges,

@@ -15,6 +15,7 @@ vi.mock('../../lib/tasks', async (importOriginal) => {
     ...actual,
     fetchOpenTasks: vi.fn(),
     createTask: vi.fn(),
+    createTasks: vi.fn(),
     updateTask: vi.fn(),
     deleteTask: vi.fn(),
   }
@@ -26,6 +27,7 @@ vi.mock('../../lib/projects', async (importOriginal) => {
 
 const fetchOpenTasks = vi.mocked(tasksApi.fetchOpenTasks)
 const createTask = vi.mocked(tasksApi.createTask)
+const createTasks = vi.mocked(tasksApi.createTasks)
 const updateTask = vi.mocked(tasksApi.updateTask)
 const deleteTask = vi.mocked(tasksApi.deleteTask)
 const fetchProjects = vi.mocked(projectsApi.fetchProjects)
@@ -174,6 +176,71 @@ describe('TasksPage', () => {
       due_date: null,
       smaller_version: null,
     })
+  })
+
+  it('adds several tasks to a project at once, one per line', async () => {
+    createTasks.mockResolvedValue([])
+    const user = renderPage([])
+
+    const project = await screen.findByRole('region', {
+      name: 'Workout tracker',
+    })
+    await user.click(
+      within(project).getByRole('button', { name: 'Add several' }),
+    )
+    const addButton = within(project).getByRole('button', {
+      name: 'Add tasks',
+    })
+    expect(addButton).toBeDisabled()
+
+    await user.type(
+      within(project).getByLabelText('Tasks for Workout tracker'),
+      '- Sketch the chart{Enter}{Enter}- Add labels{Enter}Pick colours',
+    )
+    await user.click(within(project).getByRole('button', { name: '10' }))
+    await user.click(within(project).getByRole('radio', { name: 'Low' }))
+    await user.click(
+      within(project).getByRole('button', { name: 'Add 3 tasks' }),
+    )
+
+    const shared = {
+      project_id: 'tracker',
+      estimated_minutes: 10,
+      energy: 'low',
+      importance: 2,
+    }
+    expect(createTasks).toHaveBeenCalledWith([
+      { title: 'Sketch the chart', ...shared },
+      { title: 'Add labels', ...shared },
+      { title: 'Pick colours', ...shared },
+    ])
+    expect(await within(project).findByRole('status')).toHaveTextContent(
+      'Added 3 tasks',
+    )
+  })
+
+  it('adds several chores at once', async () => {
+    createTasks.mockResolvedValue([])
+    const user = renderPage([])
+
+    const chores = await screen.findByRole('region', {
+      name: 'Chores & obligations',
+    })
+    await user.click(
+      within(chores).getByRole('button', { name: 'Add several' }),
+    )
+    await user.type(
+      within(chores).getByLabelText('Chores & obligations'),
+      'Laundry{Enter}Dishes',
+    )
+    await user.click(
+      within(chores).getByRole('button', { name: 'Add 2 tasks' }),
+    )
+
+    expect(createTasks).toHaveBeenCalledWith([
+      expect.objectContaining({ title: 'Laundry', project_id: null }),
+      expect.objectContaining({ title: 'Dishes', project_id: null }),
+    ])
   })
 
   it('edits a task and can move it to a project', async () => {
