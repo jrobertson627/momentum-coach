@@ -2,7 +2,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 import SignIn from './SignIn'
-import { Button } from './components/ui/Button'
+import { AppShell } from './components/layout/AppShell'
+import { useView } from './components/layout/view'
 import { IdeasPage } from './features/ideas/IdeasPage'
 import { QuickCapture } from './features/ideas/QuickCapture'
 import { useIdeas } from './features/ideas/useIdeas'
@@ -20,25 +21,6 @@ const statusText: Record<Status, string> = {
   offline: 'Can’t reach the server',
 }
 
-const VIEWS = ['now', 'projects', 'tasks', 'ideas'] as const
-type View = (typeof VIEWS)[number]
-
-function viewFromHash(): View {
-  const hash = window.location.hash.slice(1)
-  return VIEWS.find((view) => view === hash) ?? 'now'
-}
-
-/** The current screen, kept in the URL hash so reloads and Back work. */
-function useView(): View {
-  const [view, setView] = useState(viewFromHash)
-  useEffect(() => {
-    const onChange = () => setView(viewFromHash())
-    window.addEventListener('hashchange', onChange)
-    return () => window.removeEventListener('hashchange', onChange)
-  }, [])
-  return view
-}
-
 function App() {
   const session = useSession()
 
@@ -50,93 +32,25 @@ function App() {
 
 function SignedIn({ email }: { email?: string }) {
   const view = useView()
-
-  return (
-    <div className="min-h-svh">
-      <AppHeader email={email} view={view} />
-      <main className="mx-auto w-full max-w-2xl px-4 py-8">
-        {view === 'ideas' && <IdeasPage />}
-        {view === 'tasks' && <TasksPage />}
-        {view === 'projects' && <ProjectsPage />}
-        {view === 'now' && <NowPage />}
-      </main>
-    </div>
-  )
-}
-
-function AppHeader({ email, view }: { email?: string; view: View }) {
   const queryClient = useQueryClient()
   const ideas = useIdeas()
-  const ideaCount = ideas.data?.length ?? 0
 
   return (
-    <header className="border-b border-border bg-muted">
-      <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="" width={28} height={28} />
-          <span className="font-serif text-lg font-semibold">
-            Momentum Coach
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden text-sm text-muted-foreground sm:inline">
-            {email}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              await supabase.auth.signOut()
-              queryClient.clear()
-            }}
-          >
-            Sign out
-          </Button>
-        </div>
-      </div>
-      <div className="mx-auto grid w-full max-w-2xl gap-3 px-4 pb-3">
-        <nav aria-label="Main" className="flex gap-1">
-          <NavLink href="#now" current={view === 'now'}>
-            Now
-          </NavLink>
-          <NavLink href="#projects" current={view === 'projects'}>
-            Projects
-          </NavLink>
-          <NavLink href="#tasks" current={view === 'tasks'}>
-            Tasks
-          </NavLink>
-          <NavLink href="#ideas" current={view === 'ideas'}>
-            Parking lot{ideaCount > 0 && ` (${ideaCount})`}
-          </NavLink>
-        </nav>
-        <QuickCapture />
-      </div>
-    </header>
-  )
-}
-
-function NavLink({
-  href,
-  current,
-  children,
-}: {
-  href: string
-  current: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <a
-      href={href}
-      aria-current={current ? 'page' : undefined}
-      className={clsx(
-        'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-        current
-          ? 'bg-accent text-accent-foreground'
-          : 'text-muted-foreground hover:bg-background hover:text-foreground',
-      )}
+    <AppShell
+      view={view}
+      email={email}
+      ideaCount={ideas.data?.length ?? 0}
+      onSignOut={async () => {
+        await supabase.auth.signOut()
+        queryClient.clear()
+      }}
+      headerExtra={<QuickCapture />}
     >
-      {children}
-    </a>
+      {view === 'ideas' && <IdeasPage />}
+      {view === 'tasks' && <TasksPage />}
+      {view === 'projects' && <ProjectsPage />}
+      {view === 'now' && <NowPage />}
+    </AppShell>
   )
 }
 
