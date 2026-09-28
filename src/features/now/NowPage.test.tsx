@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as actionsApi from '../../lib/actions'
 import * as eventsApi from '../../lib/events'
 import * as projectsApi from '../../lib/projects'
 import * as tasksApi from '../../lib/tasks'
@@ -11,9 +12,13 @@ import { NowPage } from './NowPage'
 
 vi.mock('../../lib/tasks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/tasks')>()
-  return { ...actual, fetchOpenTasks: vi.fn() }
+  return { ...actual, fetchOpenTasks: vi.fn(), createTask: vi.fn() }
 })
 vi.mock('../../lib/events', () => ({ fetchRecentEvents: vi.fn() }))
+vi.mock('../../lib/actions', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/actions')>()
+  return { ...actual, actOnTask: vi.fn() }
+})
 vi.mock('../../lib/projects', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/projects')>()
   return { ...actual, fetchProjects: vi.fn() }
@@ -22,6 +27,8 @@ vi.mock('../../lib/projects', async (importOriginal) => {
 const fetchOpenTasks = vi.mocked(tasksApi.fetchOpenTasks)
 const fetchProjects = vi.mocked(projectsApi.fetchProjects)
 const fetchRecentEvents = vi.mocked(eventsApi.fetchRecentEvents)
+const actOnTask = vi.mocked(actionsApi.actOnTask)
+const createTask = vi.mocked(tasksApi.createTask)
 
 function task(title: string, overrides: Partial<Task> = {}): Task {
   return {
@@ -43,9 +50,9 @@ function task(title: string, overrides: Partial<Task> = {}): Task {
   }
 }
 
-function renderPage(tasks: Task[]) {
+function renderPage(tasks: Task[], projects: projectsApi.Project[] = []) {
   fetchOpenTasks.mockResolvedValue(tasks)
-  fetchProjects.mockResolvedValue([])
+  fetchProjects.mockResolvedValue(projects)
   fetchRecentEvents.mockResolvedValue([])
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -190,6 +197,149 @@ describe('NowPage', () => {
       expect(
         screen.getByRole('region', { name: 'Your next step' }),
       ).toHaveTextContent('Write the report')
+    })
+  })
+
+  describe('acting on the pick', () => {
+    const tracker: projectsApi.Project = {
+      id: 'tracker',
+      user_id: 'user',
+      name: 'Workout tracker',
+      why: null,
+      definition_of_done: null,
+      status: 'active',
+      finished_at: null,
+      created_at: '2026-09-27T00:00:00Z',
+      updated_at: '',
+    }
+    const chart = task('Make the chart', {
+      project_id: 'tracker',
+      importance: 3,
+    })
+    const laundry = task('Laundry', { energy: 'low', importance: 1 })
+
+    async function checkIn(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole('radio', { name: '25 min' }))
+      await user.click(screen.getByRole('radio', { name: 'Medium' }))
+      return screen.findByRole('region', { name: 'Your next step' })
+    }
+
+    it('completes a project task and asks for its next step', async () => {
+      actOnTask.mockResolvedValue({ ...chart, status: 'done' })
+      createTask.mockResolvedValue(task('Add labels'))
+      const { user } = renderPage([chart, laundry], [tracker])
+      await checkIn(user)
+
+      await user.click(screen.getByRole('button', { name: 'Done' }))
+
+      expect(actOnTask).toHaveBeenCalledWith(
+        'Make the chart',
+        { kind: 'completed' },
+        { minutes: 25, energy: 'medium' },
+      )
+      expect(await screen.findByText('Nice work.')).toBeVisible()
+
+      await user.type(
+        screen.getByLabelText('What’s the next step for Workout tracker?'),
+        'Add labels{Enter}',
+      )
+      expect(createTask).toHaveBeenCalledWith({
+        title: 'Add labels',
+        project_id: 'tracker',
+      })
+      // Back to recommendations.
+      expect(
+        await screen.findByRole('region', { name: 'Your next step' }),
+      ).toBeVisible()
+    })
+
+    it('finishing a chore just moves on', async () => {
+      actOnTask.mockResolvedValue({ ...laundry, status: 'done' })
+      const { user } = renderPage([laundry])
+      await checkIn(user)
+
+      await user.click(screen.getByRole('button', { name: 'Done' }))
+      await user.click(
+        await screen.findByRole('button', { name: 'What’s next?' }),
+      )
+
+      expect(createTask).not.toHaveBeenCalled()
+      expect(screen.queryByText('Nice work.')).not.toBeInTheDocument()
+    })
+
+    it('skips and shows something else', async () => {
+      const { user } = renderPage([chart, laundry], [tracker])
+      await checkIn(user)
+      actOnTask.mockResolvedValue(chart)
+      // After the skip, the refetched history includes it.
+      fetchRecentEvents.mockResolvedValue([
+        {
+          task_id: 'Make the chart',
+          project_id: 'tracker',
+          kind: 'skipped',
+          created_at: new Date().toISOString(),
+        },
+      ])
+
+      await user.click(screen.getByRole('button', { name: 'Skip' }))
+
+      expect(actOnTask).toHaveBeenCalledWith(
+        'Make the chart',
+        { kind: 'skipped' },
+        { minutes: 25, energy: 'medium' },
+      )
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Skipped “Make the chart”',
+      )
+      expect(
+        await screen.findByRole('region', { name: 'Your next step' }),
+      ).toHaveTextContent('Laundry')
+    })
+
+    it('defers until tomorrow', async () => {
+      actOnTask.mockResolvedValue(chart)
+      const { user } = renderPage([chart], [tracker])
+      await checkIn(user)
+
+      await user.click(screen.getByRole('button', { name: 'Later' }))
+      await user.click(screen.getByRole('button', { name: 'Tomorrow' }))
+
+      expect(actOnTask).toHaveBeenCalledWith(
+        'Make the chart',
+        { kind: 'deferred', until: actionsApi.startOfDayIn(1) },
+        { minutes: 25, energy: 'medium' },
+      )
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        '“Make the chart” will be back',
+      )
+    })
+
+    it('defers to a chosen date', async () => {
+      actOnTask.mockResolvedValue(chart)
+      const { user } = renderPage([chart], [tracker])
+      await checkIn(user)
+
+      await user.click(screen.getByRole('button', { name: 'Later' }))
+      await user.type(screen.getByLabelText('On'), '2030-01-15')
+      await user.click(screen.getByRole('button', { name: 'Set' }))
+
+      expect(actOnTask).toHaveBeenCalledWith(
+        'Make the chart',
+        { kind: 'deferred', until: new Date(2030, 0, 15) },
+        { minutes: 25, energy: 'medium' },
+      )
+    })
+
+    it('shows an error if the action fails', async () => {
+      actOnTask.mockRejectedValue(new Error('Task not found'))
+      const { user } = renderPage([chart], [tracker])
+      await checkIn(user)
+
+      await user.click(screen.getByRole('button', { name: 'Done' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Task not found',
+      )
     })
   })
 

@@ -29,6 +29,9 @@ const supabaseStub = `
   alter default privileges in schema public
     grant truncate, references, trigger, maintain on tables
     to anon, authenticated, service_role;
+  -- Likewise, new functions aren't executable by PUBLIC.
+  alter default privileges in schema public
+    revoke execute on functions from public;
 `
 
 /** A fresh in-memory Postgres with every migration applied. */

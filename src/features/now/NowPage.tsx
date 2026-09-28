@@ -6,14 +6,24 @@ import {
   rankTasks,
   type EasierAlternative,
 } from '../../engine/recommend'
+import type { TaskAction } from '../../lib/actions'
 import { describeCheckIn, type CheckIn } from '../../lib/checkIn'
 import { describeTask, type Task } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
 import { useOpenTasks } from '../tasks/useTasks'
 import { CheckInForm } from './CheckInForm'
+import { Completed } from './Completed'
+import { PickActions } from './PickActions'
+import { useActOnTask } from './useActOnTask'
 import { useRecentEvents } from './useRecentEvents'
 
 const STORAGE_KEY = 'momentum:check-in'
+
+const laterFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
+})
 
 // Remember the check-in for this browser session so switching tabs doesn't
 // ask again. Storage can be unavailable (private mode), so failures are fine.
@@ -125,6 +135,50 @@ function Recommendation({
     setNothingLighter(false)
   }
 
+  const act = useActOnTask()
+  const [completed, setCompleted] = useState<{
+    title: string
+    project: { id: string; name: string } | null
+  } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  function onAct(action: TaskAction) {
+    if (!current) return
+    const { task } = current
+    setNotice(null)
+    act.mutate(
+      { taskId: task.id, action, checkIn },
+      {
+        onSuccess: () => {
+          backToFirst()
+          if (action.kind === 'completed') {
+            const project = projects.data?.find((p) => p.id === task.project_id)
+            setCompleted({
+              title: task.title,
+              project: project ? { id: project.id, name: project.name } : null,
+            })
+          } else if (action.kind === 'skipped') {
+            setNotice(`Skipped “${task.title}”. Here’s something else.`)
+          } else {
+            setNotice(
+              `“${task.title}” will be back ${laterFormat.format(action.until)}.`,
+            )
+          }
+        },
+      },
+    )
+  }
+
+  if (completed) {
+    return (
+      <Completed
+        title={completed.title}
+        project={completed.project}
+        onContinue={() => setCompleted(null)}
+      />
+    )
+  }
+
   const projectName = (id: string | null) =>
     projects.data?.find((p) => p.id === id)?.name
 
@@ -156,6 +210,12 @@ function Recommendation({
             Tasks
           </a>{' '}
           tab.
+        </p>
+      )}
+
+      {notice && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {notice}
         </p>
       )}
 
@@ -199,6 +259,13 @@ function Recommendation({
           <p className="border-t border-border pt-3 text-sm text-muted-foreground">
             {explain(current)}
           </p>
+
+          <PickActions pending={act.isPending} onAct={onAct} />
+          {act.error && (
+            <p className="text-sm text-danger" role="alert">
+              {act.error.message}
+            </p>
+          )}
 
           {nothingLighter && (
             <p role="status" className="text-sm">
