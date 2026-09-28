@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { explain } from '../../engine/explain'
-import { rankTasks } from '../../engine/recommend'
+import {
+  easierAlternative,
+  rankTasks,
+  type EasierAlternative,
+} from '../../engine/recommend'
 import { describeCheckIn, type CheckIn } from '../../lib/checkIn'
-import { describeTask } from '../../lib/tasks'
+import { describeTask, type Task } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
 import { useOpenTasks } from '../tasks/useTasks'
 import { CheckInForm } from './CheckInForm'
@@ -80,21 +84,47 @@ function Recommendation({
   const events = useRecentEvents()
 
   const error = tasks.error ?? projects.error ?? events.error
-  const ranked = useMemo(
+  const input = useMemo(
     () =>
       tasks.data && projects.data && events.data
-        ? rankTasks({
+        ? {
             tasks: tasks.data,
             projects: projects.data,
             events: events.data,
             checkIn,
             now: new Date(),
-          })
+          }
         : null,
     [tasks.data, projects.data, events.data, checkIn],
   )
-
+  const ranked = useMemo(() => (input ? rankTasks(input) : null), [input])
   const [best, ...others] = ranked ?? []
+
+  // "Too much right now": each press steps to something lighter.
+  const [steps, setSteps] = useState<EasierAlternative<Task>[]>([])
+  const [nothingLighter, setNothingLighter] = useState(false)
+  const current = steps.at(-1)?.recommendation ?? best
+
+  function easier() {
+    if (!input || !current) return
+    const shown = new Set([
+      best.task.id,
+      ...steps.map((s) => s.recommendation.task.id),
+    ])
+    const next = easierAlternative(
+      { ...input, checkIn: steps.at(-1)?.checkIn ?? input.checkIn },
+      current,
+      shown,
+    )
+    if (next) setSteps([...steps, next])
+    else setNothingLighter(true)
+  }
+
+  function backToFirst() {
+    setSteps([])
+    setNothingLighter(false)
+  }
+
   const projectName = (id: string | null) =>
     projects.data?.find((p) => p.id === id)?.name
 
@@ -129,7 +159,7 @@ function Recommendation({
         </p>
       )}
 
-      {best && (
+      {current && (
         <section
           aria-labelledby="pick-heading"
           className="grid gap-3 rounded-lg border border-accent/40 bg-muted p-6 shadow-md"
@@ -138,33 +168,56 @@ function Recommendation({
             id="pick-heading"
             className="text-xs font-medium tracking-wide text-accent uppercase"
           >
-            {best.useSmallerVersion ? 'Start small' : 'Your next step'}
+            {current.useSmallerVersion
+              ? 'Start small'
+              : steps.length > 0
+                ? 'Something lighter'
+                : 'Your next step'}
           </p>
-          {best.useSmallerVersion ? (
+          {current.useSmallerVersion ? (
             <>
               <h2 className="text-2xl font-semibold">
-                {best.task.smaller_version}
+                {current.task.smaller_version}
               </h2>
               <p className="text-sm text-muted-foreground">
-                A first step toward “{best.task.title}”
+                A first step toward “{current.task.title}”
               </p>
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-semibold">{best.task.title}</h2>
+              <h2 className="text-2xl font-semibold">{current.task.title}</h2>
               <p className="text-sm text-muted-foreground">
-                {describeTask(best.task)}
+                {describeTask(current.task)}
               </p>
             </>
           )}
-          {best.task.project_id && (
+          {current.task.project_id && (
             <p className="text-sm">
-              For <strong>{projectName(best.task.project_id)}</strong>
+              For <strong>{projectName(current.task.project_id)}</strong>
             </p>
           )}
           <p className="border-t border-border pt-3 text-sm text-muted-foreground">
-            {explain(best)}
+            {explain(current)}
           </p>
+
+          {nothingLighter && (
+            <p role="status" className="text-sm">
+              This is the lightest thing on your list right now. It’s okay to
+              take a break instead.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {!nothingLighter && (
+              <Button size="sm" variant="secondary" onClick={easier}>
+                Too much right now
+              </Button>
+            )}
+            {steps.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={backToFirst}>
+                Back to the first suggestion
+              </Button>
+            )}
+          </div>
         </section>
       )}
 

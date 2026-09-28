@@ -129,6 +129,70 @@ describe('NowPage', () => {
     expect(pick).toHaveTextContent('A first step toward “Write the report”')
   })
 
+  describe('too much right now', () => {
+    const tasks = () => [
+      task('Write the report', {
+        energy: 'high',
+        importance: 3,
+        smaller_version: 'Write three bullet points',
+      }),
+      task('Tidy the desk', { energy: 'medium', importance: 1 }),
+      task('Water plants', {
+        energy: 'low',
+        estimated_minutes: 5,
+        importance: 1,
+      }),
+    ]
+
+    async function checkIn(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole('radio', { name: '45 min' }))
+      await user.click(screen.getByRole('radio', { name: 'High' }))
+      await screen.findByRole('region', { name: 'Your next step' })
+    }
+
+    it('steps down: the smaller version first, then only lighter tasks', async () => {
+      const { user } = renderPage(tasks())
+      await checkIn(user)
+      const tooMuch = () =>
+        user.click(screen.getByRole('button', { name: 'Too much right now' }))
+
+      await tooMuch()
+      expect(
+        screen.getByRole('region', { name: 'Start small' }),
+      ).toHaveTextContent('Write three bullet points')
+
+      await tooMuch()
+      expect(
+        screen.getByRole('region', { name: 'Something lighter' }),
+      ).toHaveTextContent('Water plants')
+    })
+
+    it('says so kindly when nothing is lighter, and can go back', async () => {
+      const { user } = renderPage(tasks())
+      await checkIn(user)
+      const tooMuch = () =>
+        user.click(screen.getByRole('button', { name: 'Too much right now' }))
+
+      await tooMuch()
+      await tooMuch()
+      await tooMuch()
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'It’s okay to take a break instead.',
+      )
+      expect(
+        screen.queryByRole('button', { name: 'Too much right now' }),
+      ).not.toBeInTheDocument()
+
+      await user.click(
+        screen.getByRole('button', { name: 'Back to the first suggestion' }),
+      )
+      expect(
+        screen.getByRole('region', { name: 'Your next step' }),
+      ).toHaveTextContent('Write the report')
+    })
+  })
+
   it('is gentle when nothing fits', async () => {
     const { user } = renderPage([
       task('Deep work', { estimated_minutes: 90, energy: 'high' }),
