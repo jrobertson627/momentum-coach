@@ -6,6 +6,7 @@ import { Button } from './components/ui/Button'
 import { IdeasPage } from './features/ideas/IdeasPage'
 import { QuickCapture } from './features/ideas/QuickCapture'
 import { useIdeas } from './features/ideas/useIdeas'
+import { NowPage } from './features/now/NowPage'
 import { ProjectsPage } from './features/projects/ProjectsPage'
 import { TasksPage } from './features/tasks/TasksPage'
 import { checkSupabase, supabase } from './lib/supabase'
@@ -19,12 +20,12 @@ const statusText: Record<Status, string> = {
   offline: 'Can’t reach the server',
 }
 
-const VIEWS = ['projects', 'tasks', 'ideas'] as const
+const VIEWS = ['now', 'projects', 'tasks', 'ideas'] as const
 type View = (typeof VIEWS)[number]
 
 function viewFromHash(): View {
   const hash = window.location.hash.slice(1)
-  return VIEWS.find((view) => view === hash) ?? 'projects'
+  return VIEWS.find((view) => view === hash) ?? 'now'
 }
 
 /** The current screen, kept in the URL hash so reloads and Back work. */
@@ -57,6 +58,7 @@ function SignedIn({ email }: { email?: string }) {
         {view === 'ideas' && <IdeasPage />}
         {view === 'tasks' && <TasksPage />}
         {view === 'projects' && <ProjectsPage />}
+        {view === 'now' && <NowPage />}
       </main>
     </div>
   )
@@ -94,6 +96,9 @@ function AppHeader({ email, view }: { email?: string; view: View }) {
       </div>
       <div className="mx-auto grid w-full max-w-2xl gap-3 px-4 pb-3">
         <nav aria-label="Main" className="flex gap-1">
+          <NavLink href="#now" current={view === 'now'}>
+            Now
+          </NavLink>
           <NavLink href="#projects" current={view === 'projects'}>
             Projects
           </NavLink>
