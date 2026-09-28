@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { actOnTask, type TaskAction } from '../../lib/actions'
 import type { CheckIn } from '../../lib/checkIn'
 import { tasksKey } from '../tasks/useTasks'
+import { gameTimeKey } from './useGameTime'
 import { eventsKey } from './useRecentEvents'
 
 export function useActOnTask() {
@@ -20,6 +21,7 @@ export function useActOnTask() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: tasksKey }),
         queryClient.invalidateQueries({ queryKey: eventsKey }),
+        queryClient.invalidateQueries({ queryKey: gameTimeKey }),
       ]),
   })
 }

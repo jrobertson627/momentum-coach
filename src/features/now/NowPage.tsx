@@ -8,11 +8,13 @@ import {
 } from '../../engine/recommend'
 import type { TaskAction } from '../../lib/actions'
 import { describeCheckIn, type CheckIn } from '../../lib/checkIn'
+import { creditsFor, SMALLER_STEP_MINUTES } from '../../lib/rewards'
 import { describeTask, type Task } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
 import { useOpenTasks } from '../tasks/useTasks'
 import { CheckInForm } from './CheckInForm'
-import { Completed } from './Completed'
+import { GameTime } from './GameTime'
+import { Completed, type CompletedProps } from './Completed'
 import { PickActions } from './PickActions'
 import { useActOnTask } from './useActOnTask'
 import { useRecentEvents } from './useRecentEvents'
@@ -55,30 +57,33 @@ export function NowPage() {
     setEditing(false)
   }
 
-  if (editing || !checkIn) {
-    return (
-      <div className="grid gap-6">
-        <header className="grid gap-1">
-          <h2 className="text-2xl font-semibold">What now?</h2>
-          <p className="text-sm text-muted-foreground">
-            Two quick taps and I’ll find something that fits.
-          </p>
-        </header>
-        <CheckInForm initial={checkIn} onSubmit={update} />
-        {checkIn && (
-          <Button
-            variant="ghost"
-            className="justify-self-start"
-            onClick={() => setEditing(false)}
-          >
-            Keep as is
-          </Button>
-        )}
-      </div>
-    )
-  }
-
-  return <Recommendation checkIn={checkIn} onChange={() => setEditing(true)} />
+  return (
+    <div className="grid gap-6">
+      <GameTime />
+      {editing || !checkIn ? (
+        <div className="grid gap-6">
+          <header className="grid gap-1">
+            <h2 className="text-2xl font-semibold">What now?</h2>
+            <p className="text-sm text-muted-foreground">
+              Two quick taps and I’ll find something that fits.
+            </p>
+          </header>
+          <CheckInForm initial={checkIn} onSubmit={update} />
+          {checkIn && (
+            <Button
+              variant="ghost"
+              className="justify-self-start"
+              onClick={() => setEditing(false)}
+            >
+              Keep as is
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Recommendation checkIn={checkIn} onChange={() => setEditing(true)} />
+      )}
+    </div>
+  )
 }
 
 /** The recommendation screen: one pick for right now, with other options. */
@@ -136,15 +141,17 @@ function Recommendation({
   }
 
   const act = useActOnTask()
-  const [completed, setCompleted] = useState<{
-    title: string
-    project: { id: string; name: string } | null
-  } | null>(null)
+  const [completed, setCompleted] = useState<CompletedProps | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
-  function onAct(action: TaskAction) {
+  function onAct(requested: TaskAction) {
     if (!current) return
-    const { task } = current
+    const { task, useSmallerVersion } = current
+    // Done on a smaller version finishes the first step, not the whole task.
+    const action: TaskAction =
+      requested.kind === 'completed' && useSmallerVersion
+        ? { kind: 'progressed' }
+        : requested
     setNotice(null)
     act.mutate(
       { taskId: task.id, action, checkIn },
@@ -155,7 +162,16 @@ function Recommendation({
             const project = projects.data?.find((p) => p.id === task.project_id)
             setCompleted({
               title: task.title,
+              step: null,
+              earned: creditsFor(task.estimated_minutes),
               project: project ? { id: project.id, name: project.name } : null,
+            })
+          } else if (action.kind === 'progressed') {
+            setCompleted({
+              title: task.title,
+              step: task.smaller_version,
+              earned: creditsFor(SMALLER_STEP_MINUTES),
+              project: null,
             })
           } else if (action.kind === 'skipped') {
             setNotice(`Skipped “${task.title}”. Here’s something else.`)
@@ -170,13 +186,7 @@ function Recommendation({
   }
 
   if (completed) {
-    return (
-      <Completed
-        title={completed.title}
-        project={completed.project}
-        onContinue={() => setCompleted(null)}
-      />
-    )
+    return <Completed {...completed} onContinue={() => setCompleted(null)} />
   }
 
   const projectName = (id: string | null) =>

@@ -1,18 +1,29 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
+import { formatCredits } from '../../lib/rewards'
 import { useCreateTask } from '../tasks/useTasks'
 
-type Props = {
+export type CompletedProps = {
   title: string
+  /** Set when only the task's smaller version (a first step) was done. */
+  step: string | null
+  /** Game-time minutes earned. */
+  earned: number
+  /** For finished project tasks: ask for the project's next step. */
   project: { id: string; name: string } | null
-  onContinue: () => void
 }
 
 /**
- * Shown after finishing a task. For project tasks it asks for the next step
- * straight away, so the project never stalls without one.
+ * Shown after finishing a task or a first step. For finished project tasks it
+ * asks for the next step straight away, so the project never stalls.
  */
-export function Completed({ title, project, onContinue }: Props) {
+export function Completed({
+  title,
+  step,
+  earned,
+  project,
+  onContinue,
+}: CompletedProps & { onContinue: () => void }) {
   const id = useId()
   const create = useCreateTask()
   const [next, setNext] = useState('')
@@ -36,10 +47,17 @@ export function Completed({ title, project, onContinue }: Props) {
           id={`${id}-heading`}
           className="text-xs font-medium tracking-wide text-accent uppercase"
         >
-          Done
+          {step ? 'First step done' : 'Done'}
         </p>
         <h2 className="text-2xl font-semibold">Nice work.</h2>
-        <p className="text-sm text-muted-foreground">“{title}” is finished.</p>
+        <p className="text-sm text-muted-foreground">
+          {step
+            ? `“${step}” is done. “${title}” stays on your list, a little lighter.`
+            : `“${title}” is finished.`}
+        </p>
+        <p className="mt-2 text-sm font-medium text-accent">
+          +{formatCredits(earned)} of game time
+        </p>
       </div>
 
       {project ? (

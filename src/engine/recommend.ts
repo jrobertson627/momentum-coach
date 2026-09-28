@@ -38,7 +38,8 @@ export type EngineEvent = {
   task_id: string
   /** The task's project at the time, so progress counts after a task is done. */
   project_id: string | null
-  kind: 'completed' | 'skipped' | 'deferred'
+  /** progressed: a first step (smaller version) was done; the task stays open. */
+  kind: 'completed' | 'progressed' | 'skipped' | 'deferred'
   created_at: string
 }
 
@@ -164,7 +165,7 @@ type ScoringContext = {
   now: Date
   events: EngineEvent[]
   projectById: Map<string, EngineProject>
-  /** Latest completion per project: "progress". */
+  /** Latest completion or first step per project: "progress". */
   lastProgress: Map<string, Date>
   config: EngineConfig
 }
@@ -175,7 +176,9 @@ function scoringContext(
 ): ScoringContext {
   const lastProgress = new Map<string, Date>()
   for (const event of input.events) {
-    if (event.kind !== 'completed' || !event.project_id) continue
+    const madeProgress =
+      event.kind === 'completed' || event.kind === 'progressed'
+    if (!madeProgress || !event.project_id) continue
     const at = new Date(event.created_at)
     const prev = lastProgress.get(event.project_id)
     if (!prev || at > prev) lastProgress.set(event.project_id, at)
@@ -250,7 +253,8 @@ function scoreTask<T extends EngineTask>(
   let recentSkips = 0
   let olderPostponements = 0
   for (const event of events) {
-    if (event.task_id !== task.id || event.kind === 'completed') continue
+    if (event.task_id !== task.id) continue
+    if (event.kind !== 'skipped' && event.kind !== 'deferred') continue
     const ageHours =
       (now.getTime() - new Date(event.created_at).getTime()) / HOUR_MS
     if (event.kind === 'skipped' && ageHours < config.recentSkipHours) {

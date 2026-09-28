@@ -274,7 +274,7 @@ export type Database = {
       energy_level: "low" | "medium" | "high"
       project_status: "active" | "paused" | "finished" | "archived"
       reward_reason: "task_completed" | "game_time" | "adjustment"
-      task_event_kind: "completed" | "skipped" | "deferred"
+      task_event_kind: "completed" | "skipped" | "deferred" | "progressed"
       task_status: "open" | "done"
     }
     CompositeTypes: {
@@ -406,7 +406,7 @@ export const Constants = {
       energy_level: ["low", "medium", "high"],
       project_status: ["active", "paused", "finished", "archived"],
       reward_reason: ["task_completed", "game_time", "adjustment"],
-      task_event_kind: ["completed", "skipped", "deferred"],
+      task_event_kind: ["completed", "skipped", "deferred", "progressed"],
       task_status: ["open", "done"],
     },
   },
