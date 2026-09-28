@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
@@ -33,4 +34,12 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    // Tests never talk to the real project; these just let the client load.
+    env: {
+      VITE_SUPABASE_URL: 'http://localhost:54321',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'test-key',
+    },
+    setupFiles: ['./src/test/setup.ts'],
+  },
 })
