@@ -7,6 +7,7 @@ import { IdeasPage } from './features/ideas/IdeasPage'
 import { QuickCapture } from './features/ideas/QuickCapture'
 import { useIdeas } from './features/ideas/useIdeas'
 import { ProjectsPage } from './features/projects/ProjectsPage'
+import { TasksPage } from './features/tasks/TasksPage'
 import { checkSupabase, supabase } from './lib/supabase'
 import { useSession } from './lib/useSession'
 
@@ -18,10 +19,12 @@ const statusText: Record<Status, string> = {
   offline: 'Can’t reach the server',
 }
 
-type View = 'projects' | 'ideas'
+const VIEWS = ['projects', 'tasks', 'ideas'] as const
+type View = (typeof VIEWS)[number]
 
 function viewFromHash(): View {
-  return window.location.hash === '#ideas' ? 'ideas' : 'projects'
+  const hash = window.location.hash.slice(1)
+  return VIEWS.find((view) => view === hash) ?? 'projects'
 }
 
 /** The current screen, kept in the URL hash so reloads and Back work. */
@@ -51,7 +54,9 @@ function SignedIn({ email }: { email?: string }) {
     <div className="min-h-svh">
       <AppHeader email={email} view={view} />
       <main className="mx-auto w-full max-w-2xl px-4 py-8">
-        {view === 'ideas' ? <IdeasPage /> : <ProjectsPage />}
+        {view === 'ideas' && <IdeasPage />}
+        {view === 'tasks' && <TasksPage />}
+        {view === 'projects' && <ProjectsPage />}
       </main>
     </div>
   )
@@ -91,6 +96,9 @@ function AppHeader({ email, view }: { email?: string; view: View }) {
         <nav aria-label="Main" className="flex gap-1">
           <NavLink href="#projects" current={view === 'projects'}>
             Projects
+          </NavLink>
+          <NavLink href="#tasks" current={view === 'tasks'}>
+            Tasks
           </NavLink>
           <NavLink href="#ideas" current={view === 'ideas'}>
             Parking lot{ideaCount > 0 && ` (${ideaCount})`}
