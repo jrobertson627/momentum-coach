@@ -159,117 +159,143 @@ export function fitFor(
   return task.smaller_version ? 'smaller' : null
 }
 
-/** Every task that fits, best first. */
-export function rankTasks<T extends EngineTask>(
-  input: RecommendInput<T>,
-  config: EngineConfig = DEFAULT_CONFIG,
-): Recommendation<T>[] {
-  const { tasks, projects, events, checkIn, now } = input
-  const projectById = new Map(projects.map((p) => [p.id, p]))
+type ScoringContext = {
+  checkIn: CheckIn
+  now: Date
+  events: EngineEvent[]
+  projectById: Map<string, EngineProject>
+  /** Latest completion per project: "progress". */
+  lastProgress: Map<string, Date>
+  config: EngineConfig
+}
 
-  // Latest completion per project: "progress".
+function scoringContext(
+  input: RecommendInput<EngineTask>,
+  config: EngineConfig,
+): ScoringContext {
   const lastProgress = new Map<string, Date>()
-  for (const event of events) {
+  for (const event of input.events) {
     if (event.kind !== 'completed' || !event.project_id) continue
     const at = new Date(event.created_at)
     const prev = lastProgress.get(event.project_id)
     if (!prev || at > prev) lastProgress.set(event.project_id, at)
   }
+  return {
+    checkIn: input.checkIn,
+    now: input.now,
+    events: input.events,
+    projectById: new Map(input.projects.map((p) => [p.id, p])),
+    lastProgress,
+    config,
+  }
+}
 
+function scoreTask<T extends EngineTask>(
+  task: T,
+  useSmallerVersion: boolean,
+  { checkIn, now, events, projectById, lastProgress, config }: ScoringContext,
+): Recommendation<T> {
+  const factors: Factor[] = []
+
+  // Time: using more of the window well scores higher; a smaller version is
+  // a short step, so it gets a middling score.
+  factors.push({
+    key: 'fitsTime',
+    score: useSmallerVersion
+      ? 0.5
+      : 0.5 + 0.5 * clamp01(task.estimated_minutes / checkIn.minutes),
+    minutes: task.estimated_minutes,
+    available: checkIn.minutes,
+  })
+
+  // Energy: a task that matches your energy uses it well; easier is fine.
+  const gap = ENERGY_RANK[checkIn.energy] - ENERGY_RANK[task.energy]
+  factors.push({
+    key: 'energyMatch',
+    score: useSmallerVersion ? 0.6 : gap <= 0 ? 1 : gap === 1 ? 0.7 : 0.5,
+    task: task.energy,
+    available: checkIn.energy,
+  })
+
+  factors.push({
+    key: 'importance',
+    score: clamp01((task.importance - 1) / 2),
+    importance: task.importance,
+  })
+
+  if (task.due_date) {
+    const daysUntilDue = daysBetween(
+      now,
+      new Date(`${task.due_date}T00:00:00Z`),
+    )
+    factors.push({
+      key: 'deadline',
+      score: clamp01(1 - daysUntilDue / config.deadlineHorizonDays),
+      daysUntilDue,
+    })
+  }
+
+  const project = task.project_id ? projectById.get(task.project_id) : null
+  if (project) {
+    const since = lastProgress.get(project.id) ?? new Date(project.created_at)
+    const daysSinceProgress = Math.max(0, daysBetween(since, now))
+    factors.push({
+      key: 'neglect',
+      score: clamp01(daysSinceProgress / config.neglectFullAfterDays),
+      projectName: project.name,
+      daysSinceProgress,
+    })
+  }
+
+  let recentSkips = 0
+  let olderPostponements = 0
+  for (const event of events) {
+    if (event.task_id !== task.id || event.kind === 'completed') continue
+    const ageHours =
+      (now.getTime() - new Date(event.created_at).getTime()) / HOUR_MS
+    if (event.kind === 'skipped' && ageHours < config.recentSkipHours) {
+      recentSkips++
+    } else {
+      olderPostponements++
+    }
+  }
+  if (olderPostponements > 0) {
+    factors.push({
+      key: 'postponed',
+      score: clamp01(olderPostponements / config.postponedFullAt),
+      times: olderPostponements,
+    })
+  }
+  if (recentSkips > 0) {
+    factors.push({ key: 'recentlySkipped', score: 1 })
+  }
+
+  const weighted = factors
+    .map((factor) => {
+      const weight = config.weights[factor.key]
+      return { ...factor, weight, contribution: weight * factor.score }
+    })
+    .sort((a, b) => b.contribution - a.contribution)
+
+  const total = weighted.reduce((sum, f) => sum + f.contribution, 0)
+  return {
+    task,
+    useSmallerVersion,
+    score: useSmallerVersion ? total * config.smallerVersionPenalty : total,
+    factors: weighted,
+  }
+}
+
+/** Every task that fits, best first. */
+export function rankTasks<T extends EngineTask>(
+  input: RecommendInput<T>,
+  config: EngineConfig = DEFAULT_CONFIG,
+): Recommendation<T>[] {
+  const context = scoringContext(input, config)
   const ranked: Recommendation<T>[] = []
-  for (const task of eligibleTasks(tasks, projects, now)) {
-    const fit = fitFor(task, checkIn)
-    if (!fit) continue
-    const useSmallerVersion = fit === 'smaller'
-    const factors: Factor[] = []
-
-    // Time: using more of the window well scores higher; a smaller version is
-    // a short step, so it gets a middling score.
-    factors.push({
-      key: 'fitsTime',
-      score: useSmallerVersion
-        ? 0.5
-        : 0.5 + 0.5 * clamp01(task.estimated_minutes / checkIn.minutes),
-      minutes: task.estimated_minutes,
-      available: checkIn.minutes,
-    })
-
-    // Energy: a task that matches your energy uses it well; easier is fine.
-    const gap = ENERGY_RANK[checkIn.energy] - ENERGY_RANK[task.energy]
-    factors.push({
-      key: 'energyMatch',
-      score: useSmallerVersion ? 0.6 : gap <= 0 ? 1 : gap === 1 ? 0.7 : 0.5,
-      task: task.energy,
-      available: checkIn.energy,
-    })
-
-    factors.push({
-      key: 'importance',
-      score: clamp01((task.importance - 1) / 2),
-      importance: task.importance,
-    })
-
-    if (task.due_date) {
-      const daysUntilDue = daysBetween(
-        now,
-        new Date(`${task.due_date}T00:00:00Z`),
-      )
-      factors.push({
-        key: 'deadline',
-        score: clamp01(1 - daysUntilDue / config.deadlineHorizonDays),
-        daysUntilDue,
-      })
-    }
-
-    const project = task.project_id ? projectById.get(task.project_id) : null
-    if (project) {
-      const since = lastProgress.get(project.id) ?? new Date(project.created_at)
-      const daysSinceProgress = Math.max(0, daysBetween(since, now))
-      factors.push({
-        key: 'neglect',
-        score: clamp01(daysSinceProgress / config.neglectFullAfterDays),
-        projectName: project.name,
-        daysSinceProgress,
-      })
-    }
-
-    let recentSkips = 0
-    let olderPostponements = 0
-    for (const event of events) {
-      if (event.task_id !== task.id || event.kind === 'completed') continue
-      const ageHours =
-        (now.getTime() - new Date(event.created_at).getTime()) / HOUR_MS
-      if (event.kind === 'skipped' && ageHours < config.recentSkipHours) {
-        recentSkips++
-      } else {
-        olderPostponements++
-      }
-    }
-    if (olderPostponements > 0) {
-      factors.push({
-        key: 'postponed',
-        score: clamp01(olderPostponements / config.postponedFullAt),
-        times: olderPostponements,
-      })
-    }
-    if (recentSkips > 0) {
-      factors.push({ key: 'recentlySkipped', score: 1 })
-    }
-
-    const weighted = factors
-      .map((factor) => {
-        const weight = config.weights[factor.key]
-        return { ...factor, weight, contribution: weight * factor.score }
-      })
-      .sort((a, b) => b.contribution - a.contribution)
-
-    const total = weighted.reduce((sum, f) => sum + f.contribution, 0)
-    ranked.push({
-      task,
-      useSmallerVersion,
-      score: useSmallerVersion ? total * config.smallerVersionPenalty : total,
-      factors: weighted,
-    })
+  for (const task of eligibleTasks(input.tasks, input.projects, input.now)) {
+    const fit = fitFor(task, input.checkIn)
+    if (fit) ranked.push(scoreTask(task, fit === 'smaller', context))
   }
 
   // Highest score first; ties go to the task that has waited longest, then id,
@@ -288,4 +314,64 @@ export function recommend<T extends EngineTask>(
   config: EngineConfig = DEFAULT_CONFIG,
 ): Recommendation<T> | null {
   return rankTasks(input, config)[0] ?? null
+}
+
+/** A smaller version counts as a short, low-energy step. */
+const SMALLER_VERSION_MINUTES = 10
+
+/** How much a pick asks of you: energy first, then time. */
+function effort(r: Recommendation): number {
+  if (r.useSmallerVersion) return SMALLER_VERSION_MINUTES
+  return ENERGY_RANK[r.task.energy] * 1000 + r.task.estimated_minutes
+}
+
+const LOWER_ENERGY: Record<Energy, Energy> = {
+  high: 'medium',
+  medium: 'low',
+  low: 'low',
+}
+
+export type EasierAlternative<T extends EngineTask> = {
+  recommendation: Recommendation<T>
+  /** The check-in it was chosen for; pass it back in to go easier again. */
+  checkIn: CheckIn
+}
+
+/**
+ * "Too much right now": something that asks less of you than `current`.
+ *
+ * 1. The current task's smaller version, if it has one.
+ * 2. Otherwise the best pick with one energy level less, among tasks that ask
+ *    less than the current one and haven't been shown yet (`exclude`).
+ *
+ * Returns null when there is nothing lighter; that's a good moment to rest.
+ */
+export function easierAlternative<T extends EngineTask>(
+  input: RecommendInput<T>,
+  current: Recommendation<T>,
+  exclude: ReadonlySet<string> = new Set(),
+  config: EngineConfig = DEFAULT_CONFIG,
+): EasierAlternative<T> | null {
+  if (!current.useSmallerVersion && current.task.smaller_version) {
+    return {
+      recommendation: scoreTask(
+        current.task,
+        true,
+        scoringContext(input, config),
+      ),
+      checkIn: input.checkIn,
+    }
+  }
+
+  const checkIn = {
+    ...input.checkIn,
+    energy: LOWER_ENERGY[input.checkIn.energy],
+  }
+  const lighter = rankTasks({ ...input, checkIn }, config).find(
+    (r) =>
+      r.task.id !== current.task.id &&
+      !exclude.has(r.task.id) &&
+      effort(r) < effort(current),
+  )
+  return lighter ? { recommendation: lighter, checkIn } : null
 }
