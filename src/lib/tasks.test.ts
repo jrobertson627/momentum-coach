@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { Project } from './projects'
-import { describeTask, formatMinutes, groupTasks, type Task } from './tasks'
+import {
+  describeTask,
+  formatMinutes,
+  groupTasks,
+  parseTaskLines,
+  TITLE_MAX,
+  type Task,
+} from './tasks'
 
 function project(name: string, status: Project['status']): Project {
   return {
@@ -97,5 +104,51 @@ describe('formatMinutes', () => {
     [125, '2 h 5 min'],
   ])('%i → %s', (minutes, text) => {
     expect(formatMinutes(minutes)).toBe(text)
+  })
+})
+
+describe('parseTaskLines', () => {
+  it('makes one task per line, ignoring blank lines', () => {
+    expect(
+      parseTaskLines('Sketch the chart\n\n  Add labels  \r\nPick colours\n'),
+    ).toEqual(['Sketch the chart', 'Add labels', 'Pick colours'])
+  })
+
+  it('strips list markers and checkboxes from pasted notes', () => {
+    expect(
+      parseTaskLines(
+        [
+          '- dash',
+          '* star',
+          '• bullet',
+          '1. numbered',
+          '2) paren',
+          '[ ] box',
+          '- [x] done box',
+        ].join('\n'),
+      ),
+    ).toEqual([
+      'dash',
+      'star',
+      'bullet',
+      'numbered',
+      'paren',
+      'box',
+      'done box',
+    ])
+  })
+
+  it('keeps hyphens and numbers that are part of the task', () => {
+    expect(
+      parseTaskLines('Re-read chapter 3\n2026 taxes\n-5 min stretch'),
+    ).toEqual(['Re-read chapter 3', '2026 taxes', '-5 min stretch'])
+  })
+
+  it('trims very long lines to the title limit', () => {
+    expect(parseTaskLines('x'.repeat(250))[0]).toHaveLength(TITLE_MAX)
+  })
+
+  it('returns nothing for empty input', () => {
+    expect(parseTaskLines('  \n \n')).toEqual([])
   })
 })

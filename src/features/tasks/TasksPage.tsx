@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card'
 import type { Project } from '../../lib/projects'
 import { describeTask, groupTasks, type Task } from '../../lib/tasks'
 import { useProjects } from '../projects/useProjects'
+import { BulkAddForm } from './BulkAddForm'
 import { TaskForm } from './TaskForm'
 import {
   useCreateTask,
@@ -15,7 +16,15 @@ import {
 export function TasksPage() {
   const tasks = useOpenTasks()
   const projects = useProjects()
-  const [addingTo, setAddingTo] = useState<string | null | undefined>(undefined)
+  // Which section is adding tasks (project id, or null for chores), and how.
+  const [adding, setAdding] = useState<{
+    key: string | null
+    mode: 'one' | 'several'
+  } | null>(null)
+  const [added, setAdded] = useState<{
+    key: string | null
+    count: number
+  } | null>(null)
 
   const error = tasks.error ?? projects.error
   if (error) {
@@ -62,26 +71,59 @@ export function TasksPage() {
                   </span>
                 )}
               </h3>
-              {addingTo !== key && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setAddingTo(key)}
-                >
-                  Add task
-                </Button>
+              {adding?.key !== key && (
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAdded(null)
+                      setAdding({ key, mode: 'several' })
+                    }}
+                  >
+                    Add several
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setAdded(null)
+                      setAdding({ key, mode: 'one' })
+                    }}
+                  >
+                    Add task
+                  </Button>
+                </div>
               )}
             </div>
 
-            {addingTo === key && (
+            {adding?.key === key && adding.mode === 'one' && (
               <NewTask
                 projectId={key}
                 projects={assignable}
-                onDone={() => setAddingTo(undefined)}
+                onDone={() => setAdding(null)}
               />
             )}
+            {adding?.key === key && adding.mode === 'several' && (
+              <Card>
+                <BulkAddForm
+                  projectId={key}
+                  projectName={project?.name}
+                  onDone={(count) => {
+                    setAdding(null)
+                    if (count > 0) setAdded({ key, count })
+                  }}
+                />
+              </Card>
+            )}
+            {added?.key === key && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Added {added.count} {added.count === 1 ? 'task' : 'tasks'}. Use
+                Edit to fine-tune any of them.
+              </p>
+            )}
 
-            {groupTasks.length === 0 && addingTo !== key && (
+            {groupTasks.length === 0 && adding?.key !== key && (
               <p className="rounded-lg border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground">
                 {project
                   ? 'No next step yet. What’s the smallest thing that moves this forward?'

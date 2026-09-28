@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createTask,
+  createTasks,
   deleteTask,
   fetchOpenTasks,
   updateTask,
@@ -18,6 +19,14 @@ export function useCreateTask() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (task: TaskFields) => createTask(task),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: tasksKey }),
+  })
+}
+
+export function useCreateTasks() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (tasks: TaskFields[]) => createTasks(tasks),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: tasksKey }),
   })
 }

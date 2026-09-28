@@ -1,18 +1,11 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
-import { Segmented } from '../../components/ui/Segmented'
 import type { Project } from '../../lib/projects'
-import {
-  ENERGY_LABELS,
-  IMPORTANCE_LABELS,
-  type Energy,
-  type TaskFields,
-} from '../../lib/tasks'
+import type { Energy, TaskFields } from '../../lib/tasks'
+import { EffortFields } from './EffortFields'
 
 const inputClass =
   'rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground'
 const fieldClass = `w-full ${inputClass}`
-
-const MINUTE_PRESETS = [10, 25, 45, 60]
 
 type Props = {
   initial?: Partial<TaskFields>
@@ -92,58 +85,13 @@ export function TaskForm({
         </select>
       </div>
 
-      <div className="grid gap-1.5">
-        <label htmlFor={`${id}-minutes`} className="text-sm font-medium">
-          About how long? <span className="font-normal">(minutes)</span>
-        </label>
-        <div className="flex flex-wrap items-center gap-2">
-          {MINUTE_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              aria-pressed={Number(minutes) === preset}
-              onClick={() => setMinutes(String(preset))}
-              className={
-                Number(minutes) === preset
-                  ? 'rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground'
-                  : 'rounded-full border border-border px-3 py-1 text-sm text-muted-foreground hover:text-foreground'
-              }
-            >
-              {preset}
-            </button>
-          ))}
-          <input
-            id={`${id}-minutes`}
-            type="number"
-            inputMode="numeric"
-            required
-            min={1}
-            max={600}
-            value={minutes}
-            onChange={(e) => setMinutes(e.target.value)}
-            className={`${inputClass} w-24`}
-          />
-        </div>
-      </div>
-
-      <Segmented
-        legend="Energy needed"
-        value={energy}
-        onChange={setEnergy}
-        options={(['low', 'medium', 'high'] as const).map((value) => ({
-          value,
-          label: ENERGY_LABELS[value].replace(' energy', ''),
-        }))}
-      />
-
-      <Segmented
-        legend="Importance"
-        value={importance}
-        onChange={setImportance}
-        options={[1, 2, 3].map((value) => ({
-          value,
-          label: IMPORTANCE_LABELS[value],
-        }))}
+      <EffortFields
+        minutes={minutes}
+        onMinutesChange={setMinutes}
+        energy={energy}
+        onEnergyChange={setEnergy}
+        importance={importance}
+        onImportanceChange={setImportance}
       />
 
       <div className="grid gap-1.5">
