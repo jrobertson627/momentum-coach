@@ -105,6 +105,9 @@ describe('NowPage', () => {
     const pick = await screen.findByRole('region', { name: 'Your next step' })
     expect(pick).toHaveTextContent('Renew registration')
     expect(pick).not.toHaveTextContent('Laundry')
+    expect(pick).toHaveTextContent(
+      'Recommended because it is essential, matches your energy, and fits your 25 minutes.',
+    )
 
     await user.click(screen.getByText('Other options (1)'))
     expect(screen.getByText('Laundry')).toBeVisible()
