@@ -6,7 +6,8 @@ const migrationsDir = join(import.meta.dirname, '..', 'migrations')
 
 /**
  * The parts of Supabase the migrations rely on: the auth schema, auth.uid(),
- * and the anon/authenticated roles with Supabase's default grants.
+ * and the anon/authenticated/service_role roles with the hosted project's
+ * default privileges.
  */
 const supabaseStub = `
   create role anon nologin;
@@ -20,8 +21,14 @@ const supabaseStub = `
 
   grant usage on schema public, auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
+  -- Newer Supabase projects don't grant read/write on new tables to the API
+  -- roles by default (only TRUNCATE, REFERENCES, TRIGGER, MAINTAIN), so
+  -- migrations must grant table access explicitly.
+  create role service_role nologin bypassrls;
+  grant usage on schema public, auth to service_role;
   alter default privileges in schema public
-    grant all on tables to anon, authenticated;
+    grant truncate, references, trigger, maintain on tables
+    to anon, authenticated, service_role;
 `
 
 /** A fresh in-memory Postgres with every migration applied. */
