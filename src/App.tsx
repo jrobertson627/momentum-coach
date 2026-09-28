@@ -9,6 +9,7 @@ import { QuickCapture } from './features/ideas/QuickCapture'
 import { useIdeas } from './features/ideas/useIdeas'
 import { NowPage } from './features/now/NowPage'
 import { ProjectsPage } from './features/projects/ProjectsPage'
+import { useRealtimeSync } from './features/sync/useRealtimeSync'
 import { TasksPage } from './features/tasks/TasksPage'
 import { checkSupabase, supabase } from './lib/supabase'
 import { useSession } from './lib/useSession'
@@ -27,11 +28,12 @@ function App() {
   if (session === undefined) return null
   if (session === null) return <SignedOut />
 
-  return <SignedIn email={session.user.email} />
+  return <SignedIn userId={session.user.id} email={session.user.email} />
 }
 
-function SignedIn({ email }: { email?: string }) {
+function SignedIn({ userId, email }: { userId: string; email?: string }) {
   const view = useView()
+  useRealtimeSync(userId)
   const queryClient = useQueryClient()
   const ideas = useIdeas()
 

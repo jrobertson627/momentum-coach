@@ -29,6 +29,8 @@ const supabaseStub = `
   alter default privileges in schema public
     grant truncate, references, trigger, maintain on tables
     to anon, authenticated, service_role;
+  -- Supabase Realtime's publication exists, initially empty.
+  create publication supabase_realtime;
   -- Likewise, new functions aren't executable by PUBLIC.
   alter default privileges in schema public
     revoke execute on functions from public;
