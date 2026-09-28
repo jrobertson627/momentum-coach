@@ -238,7 +238,37 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      act_on_task: {
+        Args: {
+          p_available_minutes?: number
+          p_deferred_until?: string
+          p_energy?: Database["public"]["Enums"]["energy_level"]
+          p_kind: Database["public"]["Enums"]["task_event_kind"]
+          p_task_id: string
+        }
+        Returns: {
+          completed_at: string | null
+          created_at: string
+          deferred_until: string | null
+          due_date: string | null
+          energy: Database["public"]["Enums"]["energy_level"]
+          estimated_minutes: number
+          id: string
+          importance: number
+          project_id: string | null
+          smaller_version: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       energy_level: "low" | "medium" | "high"
